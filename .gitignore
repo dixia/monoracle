@@ -25,3 +25,4 @@ bot/.env
 bot/.venv/
 __pycache__/
 web/.vercel/
+DEMO.md
