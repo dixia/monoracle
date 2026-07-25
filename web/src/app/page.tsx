@@ -25,12 +25,14 @@ function Header() {
   const { address, isConnected } = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   return (
     <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur sticky top-0 z-50">
       <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
         <span className="font-bold text-lg tracking-tight">Monoracle</span>
-        {isConnected ? (
+        {mounted && isConnected ? (
           <div className="flex items-center gap-3 text-sm">
             <span className="text-zinc-400 font-mono">
               {address?.slice(0, 6)}...{address?.slice(-4)}
