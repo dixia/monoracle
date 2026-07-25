@@ -1,7 +1,7 @@
 {
   "name": "monoracle",
   "version": "1.0.0",
-  "description": "who killed jeffrey only a Oracle can tell",
+  "description": "Permissionless game-theoretic on-chain price oracle for Monad",
   "main": "index.js",
   "directories": {
     "test": "test"
