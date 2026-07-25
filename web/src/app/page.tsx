@@ -8,7 +8,7 @@ import { parseEther, formatEther, maxUint256 } from "viem";
 
 export default function Home() {
   return (
-    <main className="flex-1">
+    <main className="flex-1 bg-monad-dot">
       <Header />
       <div className="max-w-2xl mx-auto px-4 py-12 space-y-10">
         <Hero />
@@ -29,9 +29,11 @@ function Header() {
   useEffect(() => setMounted(true), []);
 
   return (
-    <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur sticky top-0 z-50">
+    <header className="border-b border-monad-purple/20 bg-[#0E100F]/80 backdrop-blur sticky top-0 z-50">
       <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-        <span className="font-bold text-lg tracking-tight">Monoracle</span>
+        <span className="font-bold text-lg tracking-tight">
+          <span className="text-monad-purple">Mono</span>racle
+        </span>
         {mounted && isConnected ? (
           <div className="flex items-center gap-3 text-sm">
             <span className="text-zinc-400 font-mono">
@@ -39,7 +41,7 @@ function Header() {
             </span>
             <button
               onClick={() => disconnect()}
-              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors text-xs font-medium"
+              className="px-3 py-1.5 rounded-lg bg-monad-purple/10 hover:bg-monad-purple/20 text-monad-purple transition-colors text-xs font-medium"
             >
               Disconnect
             </button>
@@ -47,7 +49,7 @@ function Header() {
         ) : (
           <button
             onClick={() => connect({ connector: injected() })}
-            className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm transition-colors"
+            className="px-4 py-2 rounded-lg bg-monad-purple hover:bg-monad-purple-light text-white font-semibold text-sm transition-colors"
           >
             Connect Wallet
           </button>
@@ -61,17 +63,20 @@ function Hero() {
   return (
     <section className="text-center space-y-4 pt-8">
       <h1 className="text-4xl font-bold tracking-tight">
-        <span className="text-amber-500">Monoracle</span>
+        <span className="text-monad-purple">Mono</span>racle
       </h1>
       <p className="text-zinc-400 text-lg max-w-md mx-auto">
-        Fully decentralized price oracle on Monad. Bilateral collateral + permissionless veto arbitrage.
+        Fully decentralized on-chain price oracle on Monad.
+      </p>
+      <p className="text-zinc-500 text-sm max-w-sm mx-auto">
+        Bilateral collateral + permissionless veto arbitrage. No validators, no off-chain feeds.
       </p>
       <div className="flex justify-center gap-3 pt-2">
         <a
-          href="https://github.com/iamh4/monoracle"
+          href="https://github.com/dixia/monoracle"
           target="_blank"
           rel="noopener noreferrer"
-          className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm transition-colors"
+          className="px-4 py-2 rounded-lg bg-monad-purple/10 hover:bg-monad-purple/20 border border-monad-purple/20 text-monad-purple text-sm transition-colors"
         >
           GitHub
         </a>
@@ -79,7 +84,7 @@ function Hero() {
           href={EXPLORER_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm transition-colors"
+          className="px-4 py-2 rounded-lg bg-monad-purple/10 hover:bg-monad-purple/20 border border-monad-purple/20 text-monad-purple text-sm transition-colors"
         >
           Explorer
         </a>
@@ -90,12 +95,12 @@ function Hero() {
 
 function ContractInfo() {
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 space-y-3">
+    <section className="rounded-xl border border-monad-purple/15 bg-[#200052]/40 p-6 space-y-3">
       <h2 className="text-lg font-semibold">Deployed Contract</h2>
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-zinc-500">Network</span>
-          <span className="font-mono text-amber-400">Monad Testnet</span>
+          <span className="font-mono text-monad-purple">Monad Testnet</span>
         </div>
         <div className="flex justify-between">
           <span className="text-zinc-500">Chain ID</span>
@@ -107,7 +112,7 @@ function ContractInfo() {
             href={EXPLORER_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-mono text-sm text-blue-400 hover:text-blue-300 truncate max-w-[280px]"
+            className="font-mono text-sm text-monad-purple hover:text-monad-purple-light truncate max-w-[280px]"
           >
             {CONTRACT_ADDRESS}
           </a>
@@ -145,7 +150,7 @@ function PriceReader() {
   }
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
+    <section className="rounded-xl border border-monad-purple/15 bg-[#200052]/40 p-6 space-y-4">
       <h2 className="text-lg font-semibold">Read Latest Price</h2>
       <div className="space-y-3">
         <div className="flex gap-2">
@@ -153,17 +158,17 @@ function PriceReader() {
             value={baseInput}
             onChange={(e) => setBaseInput(e.target.value)}
             placeholder="Base token address"
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500"
+            className="flex-1 bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple placeholder:text-zinc-600"
           />
           <input
             value={quoteInput}
             onChange={(e) => setQuoteInput(e.target.value)}
             placeholder="Quote token address"
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500"
+            className="flex-1 bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple placeholder:text-zinc-600"
           />
           <button
             onClick={handleSearch}
-            className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm transition-colors"
+            className="px-4 py-2 rounded-lg bg-monad-purple hover:bg-monad-purple-light text-white font-semibold text-sm transition-colors"
           >
             Query
           </button>
@@ -178,14 +183,14 @@ function PriceReader() {
             <button
               key={p.label}
               onClick={() => { setBaseInput(p.base); setQuoteInput(p.quote); setBase(p.base); setQuote(p.quote); }}
-              className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-400 hover:text-zinc-200 transition-colors border border-zinc-700"
+              className="px-3 py-1 rounded-lg bg-monad-purple/10 hover:bg-monad-purple/20 text-xs text-monad-purple transition-colors border border-monad-purple/20"
             >
               {p.label}
             </button>
           ))}
         </div>
       </div>
-      <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-4">
+      <div className="rounded-lg bg-black/30 border border-monad-purple/10 p-4">
         {isLoading && <p className="text-zinc-500 text-sm">Loading...</p>}
         {error && <p className="text-red-400 text-sm">Error: {error.message}</p>}
         {!isLoading && !error && !exists && (
@@ -195,11 +200,11 @@ function PriceReader() {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-zinc-500">Price (1e18)</span>
-              <span className="font-mono text-green-400">{price.toString()}</span>
+              <span className="font-mono text-monad-purple">{price.toString()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-500">Price (decimal)</span>
-              <span className="font-mono text-green-400">{formatEther(price)}</span>
+              <span className="font-mono text-monad-purple">{formatEther(price)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-500">Settled At Block</span>
@@ -354,7 +359,7 @@ function QuoteSubmit() {
 
   if (!isConnected) {
     return (
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
+      <section className="rounded-xl border border-monad-purple/15 bg-[#200052]/40 p-6 space-y-4">
         <h2 className="text-lg font-semibold">Submit a Quote</h2>
         <p className="text-zinc-500 text-sm">Connect your wallet to submit a price quotation.</p>
       </section>
@@ -362,7 +367,7 @@ function QuoteSubmit() {
   }
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
+    <section className="rounded-xl border border-monad-purple/15 bg-[#200052]/40 p-6 space-y-4">
       <h2 className="text-lg font-semibold">Submit a Quote</h2>
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
@@ -372,7 +377,7 @@ function QuoteSubmit() {
               value={baseToken}
               onChange={(e) => setBaseToken(e.target.value)}
               disabled={busy}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
+              className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
             />
           </div>
           <div>
@@ -381,7 +386,7 @@ function QuoteSubmit() {
               value={quoteToken}
               onChange={(e) => setQuoteToken(e.target.value)}
               disabled={busy}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
+              className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
             />
           </div>
         </div>
@@ -392,7 +397,7 @@ function QuoteSubmit() {
               value={baseAmount}
               onChange={(e) => setBaseAmount(e.target.value)}
               disabled={busy}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
+              className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
             />
           </div>
           <div>
@@ -401,14 +406,14 @@ function QuoteSubmit() {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               disabled={busy}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
+              className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
             />
           </div>
         </div>
         <button
           onClick={handleSubmit}
           disabled={busy || !baseToken || !quoteToken || !baseAmount || !price}
-          className="w-full py-3 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-semibold text-sm transition-colors"
+          className="w-full py-3 rounded-lg bg-monad-purple hover:bg-monad-purple-light disabled:bg-monad-purple/30 disabled:text-white/50 text-white font-semibold text-sm transition-colors"
         >
           {step === "approve_base" ? "Approving BASE..." :
            step === "approve_quote" ? "Approving QUOTE..." :
@@ -416,14 +421,14 @@ function QuoteSubmit() {
            step === "done" ? "Submitted ✓" : "Submit Quote"}
         </button>
         {status && (
-          <p className={`text-sm ${step === "done" ? "text-green-400" : "text-zinc-400"}`}>{status}</p>
+          <p className={`text-sm ${step === "done" ? "text-monad-purple" : "text-zinc-400"}`}>{status}</p>
         )}
         {txHash && (
           <a
             href={`https://testnet.monadscan.com/tx/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="block text-xs text-blue-400 hover:text-blue-300 truncate"
+            className="block text-xs text-monad-purple hover:text-monad-purple-light truncate"
           >
             Tx: {txHash.slice(0, 42)}...
           </a>
@@ -431,7 +436,7 @@ function QuoteSubmit() {
         {step === "done" && (
           <button
             onClick={handleReset}
-            className="w-full py-2 rounded-lg border border-zinc-700 hover:bg-zinc-800 text-zinc-400 text-sm transition-colors"
+            className="w-full py-2 rounded-lg border border-monad-purple/20 hover:bg-monad-purple/10 text-zinc-400 text-sm transition-colors"
           >
             Submit Another Quote
           </button>
@@ -443,14 +448,14 @@ function QuoteSubmit() {
 
 function Footer() {
   return (
-    <footer className="text-center text-xs text-zinc-600 py-8 border-t border-zinc-800">
-      <p>Monoracle — Built for Monad Blitz@武汉 · Deployed on Monad Testnet</p>
+    <footer className="text-center text-xs text-zinc-600 py-8 border-t border-monad-purple/10">
+      <p>Monoracle — Built for Monad Blitz@武汉</p>
       <p className="mt-1">
-        <a href="https://github.com/your-org/monoracle" className="hover:text-zinc-400">GitHub</a>
+        <a href="https://github.com/iamh4/monoracle" className="hover:text-monad-purple">GitHub</a>
         {" · "}
-        <a href={EXPLORER_URL} className="hover:text-zinc-400">Explorer</a>
+        <a href={EXPLORER_URL} className="hover:text-monad-purple">Explorer</a>
         {" · "}
-        <span>300ms block time · 2-slot verification window</span>
+        <span>300ms block time · 2-slot verification</span>
       </p>
     </footer>
   );
