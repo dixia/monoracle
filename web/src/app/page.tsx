@@ -131,8 +131,10 @@ function PriceReader() {
   const [quoteInput, setQuoteInput] = useState(TEST_TOKENS.QUOTE.address);
   const [base, setBase] = useState(TEST_TOKENS.BASE.address);
   const [quote, setQuote] = useState(TEST_TOKENS.QUOTE.address);
+  const [searchNonce, setSearchNonce] = useState(0);
+  const [queryMsg, setQueryMsg] = useState("");
 
-  const { data, isLoading, error } = useReadContract({
+  const { data, isLoading, isFetching, error, refetch } = useReadContract({
     address: CONTRACT_ADDRESS as `0x${string}`,
     abi: CONTRACT_ABI,
     functionName: "getLatestPrice",
@@ -142,12 +144,26 @@ function PriceReader() {
 
   const [price, settledSlot, exists] = (data as [bigint, number, boolean]) ?? [0n, 0, false];
 
+  useEffect(() => {
+    if (base && quote) refetch();
+  }, [base, quote, searchNonce, refetch]);
+
   function handleSearch() {
     if (baseInput && quoteInput) {
       setBase(baseInput);
       setQuote(quoteInput);
+      setSearchNonce(n => n + 1);
+      setQueryMsg("Fetching...");
     }
   }
+
+  useEffect(() => {
+    if (!isFetching) {
+      if (error) setQueryMsg(`Error: ${error.message}`);
+      else if (exists) setQueryMsg(`Price: ${formatEther(price)}`);
+      else setQueryMsg("No price data for this pair yet");
+    }
+  }, [isFetching, error, exists, price]);
 
   return (
     <section className="rounded-xl border border-monad-purple/15 bg-[#200052]/40 p-6 space-y-4">
@@ -192,11 +208,12 @@ function PriceReader() {
       </div>
       <div className="rounded-lg bg-black/30 border border-monad-purple/10 p-4">
         {isLoading && <p className="text-zinc-500 text-sm">Loading...</p>}
+        {isFetching && <p className="text-zinc-500 text-sm">Fetching...</p>}
         {error && <p className="text-red-400 text-sm">Error: {error.message}</p>}
-        {!isLoading && !error && !exists && (
+        {!isLoading && !isFetching && !error && !exists && (
           <p className="text-zinc-500 text-sm">No price data for this pair yet. Submit a quote first.</p>
         )}
-        {!isLoading && exists && (
+        {!isLoading && !isFetching && exists && (
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-zinc-500">Price (1e18)</span>
@@ -240,10 +257,53 @@ const ERC20_ABI = [
   },
 ];
 
-function QuoteSubmit() {
-  const { address, isConnected } = useAccount();
+function SettleButton({ quoteId, baseToken, quoteToken }: { quoteId: bigint; baseToken: string; quoteToken: string }) {
+  const { writeContract, data: txHash, isPending, isError, error, reset: resetWrite } = useWriteContract();
+  const { isLoading: isWaiting, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (isSuccess && txHash) {
+      setDone(true);
+    }
+  }, [isSuccess, txHash]);
+
+  if (done) {
+    return <p className="text-xs text-monad-purple">Settled ✓</p>;
+  }
+
+  return (
+    <div className="space-y-1">
+      <button
+        onClick={() => {
+          writeContract({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: CONTRACT_ABI,
+            functionName: "settleValidQuote",
+            args: [quoteId],
+          });
+        }}
+        disabled={isPending}
+        className="w-full py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:bg-green-700/40 text-white text-sm transition-colors"
+      >
+        {isPending ? "Settling..." : "Settle Quote"}
+      </button>
+      {isError && error && (
+        <p className="text-red-400 text-xs">Error: {error.message?.split(".")[0] || "failed"}</p>
+      )}
+      {txHash && (
+        <a href={`https://testnet.monadscan.com/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="block text-xs text-monad-purple truncate">
+          Tx: {txHash.slice(0, 42)}...
+        </a>
+      )}
+    </div>
+  );
+}
+
+function QuoteSubmitInner({ onDone }: { onDone: () => void }) {
+  const { address } = useAccount();
   const publicClient = usePublicClient();
-  const { writeContract, data: txHash, isPending, isError, error } = useWriteContract();
+  const { writeContract, data: txHash, isPending, isError, error, reset: resetWrite } = useWriteContract();
   const { isLoading: isWaiting, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
 
   const [baseToken, setBaseToken] = useState(TEST_TOKENS.BASE.address);
@@ -253,6 +313,7 @@ function QuoteSubmit() {
   const [status, setStatus] = useState("");
   const [step, setStep] = useState<"idle" | "approve_base" | "approve_quote" | "submit" | "done">("idle");
   const [checking, setChecking] = useState(false);
+  const [submittedQuoteId, setSubmittedQuoteId] = useState<bigint | null>(null);
 
   const stepRef = useRef(step);
   stepRef.current = step;
@@ -355,7 +416,108 @@ function QuoteSubmit() {
   function handleReset() {
     setStep("idle");
     setStatus("");
+    setChecking(false);
+    setSubmittedQuoteId(null);
+    resetWrite();
+    onDone();
   }
+
+  useEffect(() => {
+    if (step === "done" && !submittedQuoteId && address && publicClient) {
+      publicClient.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: CONTRACT_ABI,
+        functionName: "nextQuoteId",
+      }).then((id: any) => setSubmittedQuoteId((id as bigint) - 1n)).catch(() => {});
+    }
+  }, [step, submittedQuoteId, address, publicClient]);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-zinc-500 mb-1">Base Token</label>
+          <input
+            value={baseToken}
+            onChange={(e) => setBaseToken(e.target.value)}
+            disabled={busy}
+            className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-zinc-500 mb-1">Quote Token</label>
+          <input
+            value={quoteToken}
+            onChange={(e) => setQuoteToken(e.target.value)}
+            disabled={busy}
+            className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-zinc-500 mb-1">Base Amount (token units)</label>
+          <input
+            value={baseAmount}
+            onChange={(e) => setBaseAmount(e.target.value)}
+            disabled={busy}
+            className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-zinc-500 mb-1">Price (1e18, quote per base)</label>
+          <input
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            disabled={busy}
+            className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
+          />
+        </div>
+      </div>
+      <button
+        onClick={handleSubmit}
+        disabled={busy || !baseToken || !quoteToken || !baseAmount || !price}
+        className="w-full py-3 rounded-lg bg-monad-purple hover:bg-monad-purple-light disabled:bg-monad-purple/30 disabled:text-white/50 text-white font-semibold text-sm transition-colors"
+      >
+        {step === "approve_base" ? "Approving BASE..." :
+         step === "approve_quote" ? "Approving QUOTE..." :
+         step === "submit" ? "Submitting..." :
+         step === "done" ? "Submitted ✓" : "Submit Quote"}
+      </button>
+      {status && (
+        <p className={`text-sm ${step === "done" ? "text-monad-purple" : "text-zinc-400"}`}>{status}</p>
+      )}
+      {txHash && (
+        <a
+          href={`https://testnet.monadscan.com/tx/${txHash}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-xs text-monad-purple hover:text-monad-purple-light truncate"
+        >
+          Tx: {txHash.slice(0, 42)}...
+        </a>
+      )}
+      {step === "done" && (
+        <div className="space-y-2 pt-2 border-t border-monad-purple/10">
+          <p className="text-xs text-zinc-500">Quote pending settlement. Wait ~1s for the 2-block window, then settle:</p>
+          {submittedQuoteId !== null && (
+            <SettleButton quoteId={submittedQuoteId} baseToken={baseToken} quoteToken={quoteToken} />
+          )}
+          <button
+            onClick={handleReset}
+            className="w-full py-2 rounded-lg border border-monad-purple/20 hover:bg-monad-purple/10 text-zinc-400 text-sm transition-colors"
+          >
+            Submit Another Quote
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuoteSubmit() {
+  const { isConnected } = useAccount();
+  const [formKey, setFormKey] = useState(0);
 
   if (!isConnected) {
     return (
@@ -369,79 +531,7 @@ function QuoteSubmit() {
   return (
     <section className="rounded-xl border border-monad-purple/15 bg-[#200052]/40 p-6 space-y-4">
       <h2 className="text-lg font-semibold">Submit a Quote</h2>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Base Token</label>
-            <input
-              value={baseToken}
-              onChange={(e) => setBaseToken(e.target.value)}
-              disabled={busy}
-              className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Quote Token</label>
-            <input
-              value={quoteToken}
-              onChange={(e) => setQuoteToken(e.target.value)}
-              disabled={busy}
-              className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Base Amount (token units)</label>
-            <input
-              value={baseAmount}
-              onChange={(e) => setBaseAmount(e.target.value)}
-              disabled={busy}
-              className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Price (1e18, quote per base)</label>
-            <input
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              disabled={busy}
-              className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
-            />
-          </div>
-        </div>
-        <button
-          onClick={handleSubmit}
-          disabled={busy || !baseToken || !quoteToken || !baseAmount || !price}
-          className="w-full py-3 rounded-lg bg-monad-purple hover:bg-monad-purple-light disabled:bg-monad-purple/30 disabled:text-white/50 text-white font-semibold text-sm transition-colors"
-        >
-          {step === "approve_base" ? "Approving BASE..." :
-           step === "approve_quote" ? "Approving QUOTE..." :
-           step === "submit" ? "Submitting..." :
-           step === "done" ? "Submitted ✓" : "Submit Quote"}
-        </button>
-        {status && (
-          <p className={`text-sm ${step === "done" ? "text-monad-purple" : "text-zinc-400"}`}>{status}</p>
-        )}
-        {txHash && (
-          <a
-            href={`https://testnet.monadscan.com/tx/${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-xs text-monad-purple hover:text-monad-purple-light truncate"
-          >
-            Tx: {txHash.slice(0, 42)}...
-          </a>
-        )}
-        {step === "done" && (
-          <button
-            onClick={handleReset}
-            className="w-full py-2 rounded-lg border border-monad-purple/20 hover:bg-monad-purple/10 text-zinc-400 text-sm transition-colors"
-          >
-            Submit Another Quote
-          </button>
-        )}
-      </div>
+      <QuoteSubmitInner key={formKey} onDone={() => setFormKey(k => k + 1)} />
     </section>
   );
 }
