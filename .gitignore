@@ -18,3 +18,5 @@ states/
 cache/compile-cache.json
 /node_modules
 deployment.json
+hardhat.config.js
+.next/
