@@ -26,9 +26,11 @@ if not PRIVATE_KEY:
     print("ERROR: Set PRIVATE_KEY in .env"); sys.exit(1)
 
 RPC_WS_URL      = os.getenv("RPC_WS_URL",      "wss://testnet-rpc.monad.xyz")
+RPC_HTTP_URL    = os.getenv("RPC_HTTP_URL",    "https://testnet-rpc.monad.xyz")
 ORACLE_ADDRESS  = os.getenv("ORACLE_ADDRESS",  "0xF92A55D4e22456C987b3e7AF2E3730b3f5022Ccb")
 THRESHOLD_BPS   = int(os.getenv("THRESHOLD_BPS",   "100"))   # 100 bps = 1%
 GAS_LIMIT_VETO  = int(os.getenv("GAS_LIMIT_VETO",  "120000"))
+CATCH_UP_BLOCKS = int(os.getenv("CATCH_UP_BLOCKS", "10"))
 LOG_LEVEL       = os.getenv("LOG_LEVEL",        "INFO")
 
 MONITORED_PAIRS = os.getenv("MONITORED_PAIRS", "")
@@ -48,6 +50,10 @@ MAX_UINT256 = 2**256 - 1
 w3 = Web3(Web3.LegacyWebSocketProvider(RPC_WS_URL))
 if not w3.is_connected():
     log.error("Cannot connect to %s", RPC_WS_URL); sys.exit(1)
+
+w3_http = Web3(Web3.HTTPProvider(RPC_HTTP_URL))
+if not w3_http.is_connected():
+    log.error("Cannot connect to %s", RPC_HTTP_URL); sys.exit(1)
 
 account = w3.eth.account.from_key(PRIVATE_KEY)
 VERIFIER = account.address
@@ -190,28 +196,41 @@ QUOTE_SUBMITTED_TOPIC = Web3.keccak(text=QUOTE_SUBMITTED_SIG)
 def event_loop():
     pre_approve()
 
-    # Catch up from latest block
-    latest = w3.eth.block_number
+    # Catch up on recent blocks (in case of restart)
+    latest = w3_http.eth.block_number
+    start = max(latest - CATCH_UP_BLOCKS, 0)
+    log.info("Catching up block %d → %d", start, latest)
+    for blk in range(start, latest + 1):
+        try:
+            logs = w3_http.eth.get_logs({
+                "fromBlock": blk, "toBlock": blk,
+                "address": ORACLE_ADDRESS,
+                "topics": [QUOTE_SUBMITTED_TOPIC],
+            })
+        except Exception:
+            continue
+        for raw_log in logs:
+            check_and_veto(raw_log)
+
     log.info("Listening from block %d", latest)
 
     while True:
         try:
-            current = w3.eth.block_number
+            current = w3_http.eth.block_number
             if current <= latest:
-                time.sleep(0.3)   # Monad block time
+                time.sleep(0.1)
                 continue
 
-            # Fetch logs for all new blocks
+            # Scan each new block via HTTP (reliable get_logs)
             for blk in range(latest + 1, current + 1):
                 try:
-                    logs = w3.eth.get_logs({
+                    logs = w3_http.eth.get_logs({
                         "fromBlock": blk, "toBlock": blk,
                         "address": ORACLE_ADDRESS,
                         "topics": [QUOTE_SUBMITTED_TOPIC],
                     })
                 except Exception:
-                    continue  # skip RPC errors on individual block
-
+                    continue
                 for raw_log in logs:
                     check_and_veto(raw_log)
 
@@ -220,7 +239,7 @@ def event_loop():
             log.error("Loop error: %s", str(e)[:120])
             time.sleep(1)
             try:
-                latest = w3.eth.block_number
+                latest = w3_http.eth.block_number
             except Exception:
                 pass
 
@@ -231,7 +250,8 @@ if __name__ == "__main__":
     print(f"  Oracle:    {ORACLE_ADDRESS}")
     print(f"  Threshold: {THRESHOLD_BPS} bps ({THRESHOLD_BPS / 100:.2f}%)")
     print(f"  Pairs:     {len(FAIR_PRICES)}")
-    print(f"  RPC:       {RPC_WS_URL}")
+    print(f"  WS RPC:    {RPC_WS_URL}")
+    print(f"  HTTP RPC:  {RPC_HTTP_URL}")
     print()
     try:
         event_loop()

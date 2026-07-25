@@ -48,12 +48,14 @@ WebSocket → QuoteSubmitted event detected
 See `.env.example` for all parameters:
 
 | Parameter | Default | Description |
-|---|---|---|
+|---|---|---|---|
 | `PRIVATE_KEY` | (required) | Verifier wallet private key |
-| `RPC_WS_URL` | `wss://testnet-rpc.monad.xyz` | Monad WebSocket RPC |
+| `RPC_WS_URL` | `wss://testnet-rpc.monad.xyz` | Monad WebSocket RPC (veto tx) |
+| `RPC_HTTP_URL` | `https://testnet-rpc.monad.xyz` | Monad HTTP RPC (event polling) |
 | `ORACLE_ADDRESS` | `0xF92A...` | Monoracle contract |
 | `MONITORED_PAIRS` | `BASE,QUOTE,100` | Pairs to watch (token,token,fair_price) |
 | `THRESHOLD_BPS` | `100` | Min deviation in bps (100 = 1%) |
+| `CATCH_UP_BLOCKS` | `10` | Recent blocks scanned on startup |
 | `GAS_LIMIT_VETO` | `120000` | Veto tx gas limit |
 
 ## Production Deployment
