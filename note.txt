@@ -1,0 +1,2 @@
+800 ms finality
+400ms block time?
