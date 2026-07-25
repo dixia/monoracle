@@ -1,10 +1,10 @@
 "use client";
 
-import { useAccount, useConnect, useDisconnect, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useConnect, useDisconnect, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { CONTRACT_ADDRESS, CONTRACT_ABI, EXPLORER_URL, TEST_TOKENS } from "@/lib/oracle";
-import { useState, useEffect } from "react";
-import { parseEther, formatEther, parseUnits, formatUnits } from "viem";
+import { useState, useEffect, useRef } from "react";
+import { parseEther, formatEther, maxUint256 } from "viem";
 
 export default function Home() {
   return (
@@ -210,28 +210,79 @@ function PriceReader() {
   );
 }
 
+const ERC20_ABI = [
+  {
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+];
+
 function QuoteSubmit() {
-  const { isConnected } = useAccount();
-  const { writeContract, data: txHash, isPending } = useWriteContract();
+  const { address, isConnected } = useAccount();
+  const publicClient = usePublicClient();
+  const { writeContract, data: txHash, isPending, isError, error } = useWriteContract();
+  const { isLoading: isWaiting, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
 
   const [baseToken, setBaseToken] = useState(TEST_TOKENS.BASE.address);
   const [quoteToken, setQuoteToken] = useState(TEST_TOKENS.QUOTE.address);
   const [baseAmount, setBaseAmount] = useState("2");
   const [price, setPrice] = useState("100");
   const [status, setStatus] = useState("");
+  const [step, setStep] = useState<"idle" | "approve_base" | "approve_quote" | "submit" | "done">("idle");
+  const [checking, setChecking] = useState(false);
 
-  const { isLoading: isWaiting, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+  const stepRef = useRef(step);
+  stepRef.current = step;
 
   useEffect(() => {
-    if (isSuccess) setStatus("Quote submitted successfully!");
-  }, [isSuccess]);
+    if (!isSuccess || !txHash) return;
+    if (stepRef.current === "approve_base") {
+      setStatus("Approved BASE. Approving QUOTE...");
+      setStep("approve_quote");
+    } else if (stepRef.current === "approve_quote") {
+      setStatus("Approved QUOTE. Submitting quote...");
+      setStep("submit");
+    } else if (stepRef.current === "submit") {
+      setStatus("Quote submitted successfully!");
+      setStep("done");
+    }
+  }, [isSuccess, txHash]);
 
-  async function handleSubmit() {
-    if (!baseToken || !quoteToken || !baseAmount || !price) return;
-    setStatus("Submitting...");
-
-    try {
-      // Calculate quote amount for display
+  useEffect(() => {
+    if (step === "idle" || step === "done") return;
+    if (step === "approve_base") {
+      writeContract({
+        address: baseToken as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: "approve",
+        args: [CONTRACT_ADDRESS as `0x${string}`, maxUint256],
+      });
+      setStatus("Approve BASE in your wallet...");
+    } else if (step === "approve_quote") {
+      writeContract({
+        address: quoteToken as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: "approve",
+        args: [CONTRACT_ADDRESS as `0x${string}`, maxUint256],
+      });
+      setStatus("Approve QUOTE in your wallet...");
+    } else if (step === "submit") {
       const bAmt = parseEther(baseAmount);
       writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
@@ -239,9 +290,64 @@ function QuoteSubmit() {
         functionName: "submitQuote",
         args: [baseToken as `0x${string}`, quoteToken as `0x${string}`, bAmt, parseEther(price)],
       });
-    } catch (e: any) {
-      setStatus(`Error: ${e.message}`);
+      setStatus("Submit quote in your wallet...");
     }
+  }, [step]);
+
+  useEffect(() => {
+    if (isError && error) {
+      setStatus(`Error: ${error.message?.split(".")[0] || "User rejected"}`);
+      setStep("idle");
+    }
+  }, [isError, error]);
+
+  async function handleSubmit() {
+    if (checking || step !== "idle" || !address || !publicClient || !baseToken || !quoteToken || !baseAmount || !price) return;
+    setChecking(true);
+    setStatus("Checking allowances...");
+
+    try {
+      const bAmt = parseEther(baseAmount);
+      const pAmt = parseEther(price);
+      const qAmt = (bAmt * pAmt) / 10n ** 18n;
+
+      const [baseAllowance, quoteAllowance] = await Promise.all([
+        publicClient.readContract({
+          address: baseToken as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: "allowance",
+          args: [address, CONTRACT_ADDRESS as `0x${string}`],
+        }),
+        publicClient.readContract({
+          address: quoteToken as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: "allowance",
+          args: [address, CONTRACT_ADDRESS as `0x${string}`],
+        }),
+      ]) as [bigint, bigint];
+
+      const baseNeeded = baseAllowance < bAmt;
+      const quoteNeeded = quoteAllowance < qAmt;
+
+      if (!baseNeeded && !quoteNeeded) {
+        setStep("submit");
+      } else if (baseNeeded) {
+        setStep("approve_base");
+      } else {
+        setStep("approve_quote");
+      }
+    } catch (e: any) {
+      setStatus(`Error checking allowance: ${e.message?.split(".")[0] || e.message}`);
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  const busy = checking || (step !== "idle" && step !== "done");
+
+  function handleReset() {
+    setStep("idle");
+    setStatus("");
   }
 
   if (!isConnected) {
@@ -256,9 +362,6 @@ function QuoteSubmit() {
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
       <h2 className="text-lg font-semibold">Submit a Quote</h2>
-      <p className="text-zinc-500 text-xs">
-        Submit a price quotation backed by bilateral collateral. You must approve both tokens before submission.
-      </p>
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -266,8 +369,8 @@ function QuoteSubmit() {
             <input
               value={baseToken}
               onChange={(e) => setBaseToken(e.target.value)}
-              placeholder="0x..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500"
+              disabled={busy}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
             />
           </div>
           <div>
@@ -275,8 +378,8 @@ function QuoteSubmit() {
             <input
               value={quoteToken}
               onChange={(e) => setQuoteToken(e.target.value)}
-              placeholder="0x..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500"
+              disabled={busy}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
             />
           </div>
         </div>
@@ -286,8 +389,8 @@ function QuoteSubmit() {
             <input
               value={baseAmount}
               onChange={(e) => setBaseAmount(e.target.value)}
-              placeholder="e.g. 2"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500"
+              disabled={busy}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
             />
           </div>
           <div>
@@ -295,20 +398,23 @@ function QuoteSubmit() {
             <input
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder="e.g. 100"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500"
+              disabled={busy}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
             />
           </div>
         </div>
         <button
           onClick={handleSubmit}
-          disabled={isPending || isWaiting || !baseToken || !quoteToken || !baseAmount || !price}
+          disabled={busy || !baseToken || !quoteToken || !baseAmount || !price}
           className="w-full py-3 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-semibold text-sm transition-colors"
         >
-          {isPending || isWaiting ? "Submitting..." : "Submit Quote"}
+          {step === "approve_base" ? "Approving BASE..." :
+           step === "approve_quote" ? "Approving QUOTE..." :
+           step === "submit" ? "Submitting..." :
+           step === "done" ? "Submitted ✓" : "Submit Quote"}
         </button>
         {status && (
-          <p className={`text-sm ${isSuccess ? "text-green-400" : "text-zinc-400"}`}>{status}</p>
+          <p className={`text-sm ${step === "done" ? "text-green-400" : "text-zinc-400"}`}>{status}</p>
         )}
         {txHash && (
           <a
@@ -317,8 +423,16 @@ function QuoteSubmit() {
             rel="noopener noreferrer"
             className="block text-xs text-blue-400 hover:text-blue-300 truncate"
           >
-            Tx: {txHash}
+            Tx: {txHash.slice(0, 42)}...
           </a>
+        )}
+        {step === "done" && (
+          <button
+            onClick={handleReset}
+            className="w-full py-2 rounded-lg border border-zinc-700 hover:bg-zinc-800 text-zinc-400 text-sm transition-colors"
+          >
+            Submit Another Quote
+          </button>
         )}
       </div>
     </section>

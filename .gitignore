@@ -13,6 +13,7 @@ states/
 # Optional
 .env
 .env.local
+note.txt
 /.agents/skills
 /.claude
 cache/compile-cache.json
