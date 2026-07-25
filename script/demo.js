@@ -138,7 +138,7 @@ async function main() {
   console.log("  Path 2: Mispriced quote → vetoed → price feed unchanged ✅");
   console.log("═".repeat(65));
   console.log("\nTo see the bot run live:");
-  console.log("  cd bot && py vetobot.py");
+  console.log("  cd bot && py verifier.py");
   console.log("  (Submit a quote at e.g. price=50 or price=150 on the frontend)");
 }
 

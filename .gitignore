@@ -21,5 +21,7 @@ cache/compile-cache.json
 deployment.json
 hardhat.config.js
 .next/
-/bot
-DEMO.md
+bot/.env
+bot/.venv/
+__pycache__/
+web/.vercel/

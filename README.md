@@ -68,7 +68,7 @@ cp .env.example .env
 #   ORACLE_ADDRESS=<deployed_contract_address>
 
 # Run the bot
-python vetobot.py
+python verifier.py
 ```
 
 The bot monitors `QuoteSubmitted` events via WebSocket, compares prices against `FAIR_PRICES`, and automatically vetoes mispriced quotes within the 600ms verification window.
@@ -104,7 +104,7 @@ monoracle/
 │   ├── deploy.js              # Deployment script
 │   └── smoke-test.js          # Post-deploy smoke test
 ├── bot/
-│   ├── vetobot.py             # Veto arbitrage bot (WebSocket + auto-veto)
+│   ├── verifier.py             # Veto arbitrage bot (WebSocket + auto-veto)
 │   ├── requirements.txt       # Python dependencies
 │   └── .env.example           # Bot configuration template
 ├── web/                       # Next.js frontend
@@ -190,7 +190,7 @@ cp .env.example .env
 #   ORACLE_ADDRESS=<deployed_contract_address>
 
 # 运行机器人
-python vetobot.py
+python verifier.py
 ```
 
 机器人通过 WebSocket 监听 `QuoteSubmitted` 事件，将报价与 `FAIR_PRICES` 进行比较，在 600ms 验证窗口内自动否决错误报价。
@@ -226,7 +226,7 @@ monoracle/
 │   ├── deploy.js              # 部署脚本
 │   └── smoke-test.js          # 部署后冒烟测试
 ├── bot/
-│   ├── vetobot.py             # 否决套利机器人（WebSocket + 自动否决）
+│   ├── verifier.py             # 否决套利机器人（WebSocket + 自动否决）
 │   ├── requirements.txt       # Python 依赖
 │   └── .env.example           # 机器人配置模板
 ├── web/                       # Next.js 前端

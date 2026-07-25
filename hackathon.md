@@ -45,7 +45,7 @@ Price accuracy is guaranteed by **profitable arbitrage**, not by trust.
 
 - **Solidity ^0.8.20** — Smart contract
 - **Hardhat** — Development, testing, deployment
-- **Python** — Verifier veto bot (`vetobot.py`) with WebSocket event monitoring and automated arbitrage execution
+- **Python** — Verifier veto bot (`verifier.py`) with WebSocket event monitoring and automated arbitrage execution
 - **Next.js** — Frontend dashboard
 - **Monad Testnet** — Deployment target
 
@@ -92,7 +92,7 @@ Monoracle 是一个**自修正预言机**：每笔报价由锁定在链上质押
 
 - **Solidity ^0.8.20** — 智能合约
 - **Hardhat** — 开发、测试、部署框架
-- **Python** — 验证者否决机器人（`vetobot.py`），基于 WebSocket 实时监听事件并自动执行套利
+- **Python** — 验证者否决机器人（`verifier.py`），基于 WebSocket 实时监听事件并自动执行套利
 - **Next.js** — 前端
 - **Monad Testnet** — 部署目标网络
 

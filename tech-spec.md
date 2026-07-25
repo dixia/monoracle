@@ -641,7 +641,7 @@ For the demo, set `THRESHOLD_BPS = 100` (1%) to ensure vetoes are clearly intent
 ### 14.4 Demo Flow
 
 1. Set `FAIR_PRICES[(BASE, QUOTE)] = 100.0`
-2. Start the bot: `py bot/vetobot.py`
+2. Start the bot: `py bot/verifier.py`
 3. Submit a quote with **price = 75** → bot detects 25% underpriced → calls `vetoUnderpriced`
 4. Submit a quote with **price = 130** → bot detects 30% overpriced → calls `vetoOverpriced`
 5. Submit a quote with **price = 99.5** → deviation < 1% threshold → bot ignores
@@ -652,7 +652,7 @@ For the demo, set `THRESHOLD_BPS = 100` (1%) to ensure vetoes are clearly intent
 bot/
 ├── requirements.txt       # Python dependencies
 ├── .env.example          # PRIVATE_KEY, RPC_WS_URL, ORACLE_ADDRESS
-├── vetobot.py            # Main bot: WebSocket event loop → price compare → veto
+├── verifier.py            # Main bot: WebSocket event loop → price compare → veto
 └── README.md             # Setup & usage instructions
 ```
 
@@ -663,7 +663,7 @@ monoracle/
 ├── contracts/
 │   └── Monoracle.sol       # Core oracle contract
 ├── bot/
-│   ├── vetobot.py           # Veto bot: WebSocket event monitor + auto-veto
+│   ├── verifier.py           # Veto bot: WebSocket event monitor + auto-veto
 │   ├── requirements.txt     # Python dependencies
 │   ├── .env.example         # Environment template
 │   └── README.md            # Bot usage docs
