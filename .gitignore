@@ -21,3 +21,4 @@ cache/compile-cache.json
 deployment.json
 hardhat.config.js
 .next/
+/bot
