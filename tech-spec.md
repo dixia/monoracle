@@ -584,19 +584,96 @@ forge verify-contract <address> Monoracle \
 
 ---
 
-## 13. File Structure
+---
+
+## 14. Verifier Bot (Vetobot)
+
+The **vetobot** is a Python reference implementation of a Monoracle verifier. It monitors `QuoteSubmitted` events in real-time via WebSocket, compares quoted prices against a configurable fair price, and automatically executes veto transactions when mispricing exceeds a profitability threshold.
+
+### 14.1 Architecture
+
+```
+wss://testnet-rpc.monad.xyz
+    │  eth_subscribe logs for QuoteSubmitted events
+    ▼
+Detect new quote → read quote.price from contract
+    │
+    ▼
+Fetch fair price from FAIR_PRICES[(baseToken, quoteToken)]
+    │
+    ▼
+if |quote − fair| / fair > THRESHOLD_BPS:
+    ├─ quote < fair → vetoUnderpriced()
+    └─ quote > fair → vetoOverpriced()
+    │    sign + send tx (hardcoded gas limit, pre-approved tokens)
+    ▼
+Log veto decision + tx hash
+```
+
+### 14.2 Configuration
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `FAIR_PRICES` | `dict` | `{}` | Mapping `(baseToken, quoteToken) → fair_price (1e18 fixed-point)`. Populated per-pair for demo. In production, replace with CEX/DEX API calls. |
+| `THRESHOLD_BPS` | `int` | `100` | Minimum deviation in basis points (1 bp = 0.01%). Veto only triggers if `|quote − fair| / fair * 10000 >= THRESHOLD_BPS`. |
+| `RPC_WS_URL` | `str` | `wss://testnet-rpc.monad.xyz` | Monad WebSocket RPC endpoint. |
+| `ORACLE_ADDRESS` | `str` | deployed address | Monoracle contract address. |
+| `GAS_LIMIT_VETO` | `int` | `120000` | Hardcoded gas limit for veto transactions (Monad best practice). |
+
+### 14.3 Profitability Threshold (`THRESHOLD_BPS`)
+
+The threshold exists solely as a **profit gate** to prevent the bot from executing losing vetoes.
+
+A veto incurs:
+- **Gas cost**: ~0.01 MON per veto (Monad charges by gas limit, not gas used)
+- **Capital cost**: verifier must pay `quoteAmount` (underpriced) or `baseAmount` (overpriced) into escrow
+- **Secondary market costs**: fees + slippage when completing the arbitrage
+
+The bot only calls a veto when:
+```
+(baseAmount × |price − fair|) − (gas_cost_in_quote_units) − (fees) > 0
+```
+
+With small collateral amounts (e.g., `baseAmount = 1`) or illiquid pairs, even 10-50 bp deviations may be unprofitable. With large collateral (`baseAmount ≥ 1000`) and deep markets, 1-5 bp deviations become viable.
+
+For the demo, set `THRESHOLD_BPS = 100` (1%) to ensure vetoes are clearly intentional. Production deployments should calibrate per-pair based on collateral size and secondary market depth.
+
+### 14.4 Demo Flow
+
+1. Set `FAIR_PRICES[(BASE, QUOTE)] = 100.0`
+2. Start the bot: `py bot/vetobot.py`
+3. Submit a quote with **price = 75** → bot detects 25% underpriced → calls `vetoUnderpriced`
+4. Submit a quote with **price = 130** → bot detects 30% overpriced → calls `vetoOverpriced`
+5. Submit a quote with **price = 99.5** → deviation < 1% threshold → bot ignores
+
+### 14.5 File Structure
+
+```
+bot/
+├── requirements.txt       # Python dependencies
+├── .env.example          # PRIVATE_KEY, RPC_WS_URL, ORACLE_ADDRESS
+├── vetobot.py            # Main bot: WebSocket event loop → price compare → veto
+└── README.md             # Setup & usage instructions
+```
+
+### 13. File Structure
 
 ```
 monoracle/
 ├── contracts/
 │   └── Monoracle.sol       # Core oracle contract
-├── test/
-│   └── Monoracle.t.sol     # Foundry test suite
+├── bot/
+│   ├── vetobot.py           # Veto bot: WebSocket event monitor + auto-veto
+│   ├── requirements.txt     # Python dependencies
+│   ├── .env.example         # Environment template
+│   └── README.md            # Bot usage docs
 ├── script/
-│   └── Deploy.sol           # Deployment script
-├── lib/                     # Git submodules (forge install)
-│   └── openzeppelin-contracts/
-├── foundry.toml             # Foundry configuration
+│   ├── deploy.js            # Contract deployment script
+│   ├── deploy-tokens.js     # Test token deployment
+│   ├── e2e-test.js          # Happy path E2E (submit → settle → withdraw)
+│   ├── veto-e2e-test.js     # Veto flow E2E (submit → veto → withdraw)
+│   └── approve-tokens.js    # Token approval helper
+├── web/                     # Next.js frontend dapp
 ├── requirement.md           # Requirements document
 ├── tech-spec.md             # This file
 └── README.md

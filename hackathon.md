@@ -95,3 +95,7 @@ Monoracle 是一个**自修正预言机**：每笔报价由锁定在链上质押
 - **Python** — 验证者否决机器人（`vetobot.py`），基于 WebSocket 实时监听事件并自动执行套利
 - **Next.js** — 前端
 - **Monad Testnet** — 部署目标网络
+
+### Demo Frontend
+
+https://web-p0ljqigz9-h-fbf5.vercel.app

@@ -8,6 +8,8 @@
 
 Every price quotation is backed by bilateral collateral locked in an on-chain staking contract. For a fixed 2-slot verification window, any market participant may profitably veto an incorrect price by arbitraging against the locked collateral. Quotes that survive the window are confirmed as valid canonical prices.
 
+Monoracle is natively **AI Agent friendly**. Because the arbitrage veto is a pure on-chain game, AI agents can continuously optimize their execution strategies — adjusting for gas costs, slippage, DEX routing, and market depth — to maximize profit from price corrections. This creates a self-improving system where better algorithms yield better prices for all consumers.
+
 ### Scope
 
 - Permissionless participation for price providers and verifiers
@@ -83,6 +85,21 @@ Trigger: quoted price is so low that buying base asset from the contract and res
   4. Emit `QuoteVetoedUnderpriced(quoteId, verifier)`.
 - **FR-VU-004**: Post-veto escrow: `0 baseToken`, `2 * quoteAmount quoteToken` (provider deposit + verifier payment).
   - Example: 0 MON remaining, 400 USDC total (200 original + 200 from verifier).
+
+#### 3.3.3 Veto Profitability & Threshold
+
+A veto is not free. The bot pays gas (~0.01 MON) and commits capital (pays `quoteAmount` or `baseAmount` into escrow). The net profit is:
+
+```
+Profit = (arbitrage gain on secondary market) − (gas cost) − (secondary market fees/slippage)
+```
+
+Example with `baseAmount = 1`, `price = 100`, 1 QUOTE ≈ $1, 1 MON ≈ $50:
+
+- Fair price = 100.05 (5 bp deviation) → arbitrage gain is only **0.05 QUOTE** ($0.05)
+- Gas cost = 0.01 MON ($0.50) → **losing trade**
+
+With larger collateral (baseAmount = 1000) or more liquid pairs, even 1 bp becomes profitable. The threshold is a **minimum profit gate** preventing the bot from executing losing vetoes. It is configurable in basis points (bps): 100 bps = 1%, 5 bps = 0.05%.
 
 #### 3.3.2 Overpriced Veto (Base asset quoted above market)
 
