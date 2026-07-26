@@ -30,7 +30,7 @@ RPC_HTTP_URL    = os.getenv("RPC_HTTP_URL",    "https://testnet-rpc.monad.xyz")
 ORACLE_ADDRESS  = os.getenv("ORACLE_ADDRESS",  "0xF92A55D4e22456C987b3e7AF2E3730b3f5022Ccb")
 THRESHOLD_BPS   = int(os.getenv("THRESHOLD_BPS",   "100"))   # 100 bps = 1%
 GAS_LIMIT_VETO  = int(os.getenv("GAS_LIMIT_VETO",  "120000"))
-CATCH_UP_BLOCKS = int(os.getenv("CATCH_UP_BLOCKS", "10"))
+CATCH_UP_BLOCKS = int(os.getenv("CATCH_UP_BLOCKS", "60"))
 LOG_LEVEL       = os.getenv("LOG_LEVEL",        "INFO")
 
 MONITORED_PAIRS = os.getenv("MONITORED_PAIRS", "")
@@ -144,40 +144,46 @@ def send_veto(tx_fn, label: str) -> str | None:
 # -- Price Check & Veto Decision ───────────────────────────────────────────
 def check_and_veto(raw_log):
     """Parse a QuoteSubmitted log and decide whether to veto."""
+    # Check window FIRST — minimize time between detection and action
+    current_block = w3.eth.block_number
+
     try:
         event = oracle.events.QuoteSubmitted().process_log(raw_log)
     except Exception:
         return
 
-    args      = event["args"]
-    quote_id  = args["quoteId"]
-    base_tok  = args["baseToken"]
-    quote_tok = args["quoteToken"]
-    price     = args["price"]         # 1e18 fixed-point
-    start_slot= args["startSlot"]
+    args       = event["args"]
+    quote_id   = args["quoteId"]
+    base_tok   = args["baseToken"]
+    quote_tok  = args["quoteToken"]
+    base_amt   = args["baseAmount"]
+    quote_amt  = args["quoteAmount"]
+    start_slot = args["startSlot"]
+
+    # Derive effective price from actual collateral deposited
+    effective_price = (quote_amt * 10**18) // base_amt
 
     pair_key = (base_tok.lower(), quote_tok.lower())
     fair_price = FAIR_PRICES.get(pair_key)
     if fair_price is None:
         return
 
-    # Deviation in basis points
-    deviation = abs(price - fair_price) * 10000 // fair_price
+    deviation = abs(effective_price - fair_price) * 10000 // fair_price
 
-    log.info("Quote #%d  price=%.2f  fair=%.2f  dev=%d bps  slot=%d",
-             quote_id, price / 1e18, fair_price / 1e18, deviation, start_slot)
+    log.info("Quote #%d  effective=%.2f  fair=%.2f  dev=%d bps  slot=%d  current=%d",
+             quote_id, effective_price / 1e18, fair_price / 1e18,
+             deviation, start_slot, current_block)
 
     if deviation < THRESHOLD_BPS:
         log.info("  -> Skipped (< %d bps threshold)", THRESHOLD_BPS)
         return
 
-    current_block = w3.eth.block_number
     if current_block > start_slot + 2:
         log.warning("  -> Window expired (start=%d, end=%d, current=%d)",
                      start_slot, start_slot + 2, current_block)
         return
 
-    if price < fair_price:
+    if effective_price < fair_price:
         log.info("  -> Underpriced VETO")
         send_veto(oracle.functions.vetoUnderpriced(quote_id),
                   "vetoUnderpriced")
@@ -196,7 +202,7 @@ QUOTE_SUBMITTED_TOPIC = Web3.keccak(text=QUOTE_SUBMITTED_SIG)
 def event_loop():
     pre_approve()
 
-    # Catch up on recent blocks (in case of restart)
+    # Catch up on recent blocks via HTTP (in case of restart)
     latest = w3_http.eth.block_number
     start = max(latest - CATCH_UP_BLOCKS, 0)
     log.info("Catching up block %d → %d", start, latest)
@@ -212,36 +218,22 @@ def event_loop():
         for raw_log in logs:
             check_and_veto(raw_log)
 
-    log.info("Listening from block %d", latest)
+    log.info("Subscribing to QuoteSubmitted events via WebSocket...")
 
     while True:
         try:
-            current = w3_http.eth.block_number
-            if current <= latest:
-                time.sleep(0.1)
-                continue
-
-            # Scan each new block via HTTP (reliable get_logs)
-            for blk in range(latest + 1, current + 1):
-                try:
-                    logs = w3_http.eth.get_logs({
-                        "fromBlock": blk, "toBlock": blk,
-                        "address": ORACLE_ADDRESS,
-                        "topics": [QUOTE_SUBMITTED_TOPIC],
-                    })
-                except Exception:
-                    continue
-                for raw_log in logs:
-                    check_and_veto(raw_log)
-
-            latest = current
+            sub = w3.eth.subscribe("logs", {
+                "address": ORACLE_ADDRESS,
+                "topics": [QUOTE_SUBMITTED_TOPIC],
+            })
+            log.info("WS subscription active")
+            for event in sub:
+                check_and_veto(event)
         except Exception as e:
-            log.error("Loop error: %s", str(e)[:120])
-            time.sleep(1)
-            try:
-                latest = w3_http.eth.block_number
-            except Exception:
-                pass
+            log.warning("WS disconnected: %s — reconnecting in 2s", str(e)[:80])
+            try: sub.unsubscribe()
+            except Exception: pass
+            time.sleep(2)
 
 # -- Entry Point ───────────────────────────────────────────────────────────
 if __name__ == "__main__":
@@ -251,9 +243,6 @@ if __name__ == "__main__":
     print(f"  Threshold: {THRESHOLD_BPS} bps ({THRESHOLD_BPS / 100:.2f}%)")
     print(f"  Pairs:     {len(FAIR_PRICES)}")
     print(f"  WS RPC:    {RPC_WS_URL}")
-    print(f"  HTTP RPC:  {RPC_HTTP_URL}")
+    print(f"  HTTP RPC:  {RPC_HTTP_URL} (catch-up)")
     print()
-    try:
-        event_loop()
-    except KeyboardInterrupt:
-        log.info("Shutting down.")
+    event_loop()

@@ -309,7 +309,7 @@ function QuoteSubmitInner({ onDone }: { onDone: () => void }) {
   const [baseToken, setBaseToken] = useState(TEST_TOKENS.BASE.address);
   const [quoteToken, setQuoteToken] = useState(TEST_TOKENS.QUOTE.address);
   const [baseAmount, setBaseAmount] = useState("2");
-  const [price, setPrice] = useState("100");
+  const [quoteAmountInput, setQuoteAmountInput] = useState("");
   const [status, setStatus] = useState("");
   const [step, setStep] = useState<"idle" | "approve_base" | "approve_quote" | "submit" | "done">("idle");
   const [checking, setChecking] = useState(false);
@@ -352,11 +352,13 @@ function QuoteSubmitInner({ onDone }: { onDone: () => void }) {
       setStatus("Approve QUOTE in your wallet...");
     } else if (step === "submit") {
       const bAmt = parseEther(baseAmount);
+      const qAmt = parseEther(quoteAmountInput);
+      const calcPrice = bAmt > 0n ? (qAmt * 10n ** 18n) / bAmt : 0n;
       writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
         abi: CONTRACT_ABI,
         functionName: "submitQuote",
-        args: [baseToken as `0x${string}`, quoteToken as `0x${string}`, bAmt, parseEther(price)],
+        args: [baseToken as `0x${string}`, quoteToken as `0x${string}`, bAmt, calcPrice],
       });
       setStatus("Submit quote in your wallet...");
     }
@@ -370,14 +372,13 @@ function QuoteSubmitInner({ onDone }: { onDone: () => void }) {
   }, [isError, error]);
 
   async function handleSubmit() {
-    if (checking || step !== "idle" || !address || !publicClient || !baseToken || !quoteToken || !baseAmount || !price) return;
+    if (checking || step !== "idle" || !address || !publicClient || !baseToken || !quoteToken || !baseAmount || !quoteAmountInput) return;
     setChecking(true);
     setStatus("Checking allowances...");
 
     try {
       const bAmt = parseEther(baseAmount);
-      const pAmt = parseEther(price);
-      const qAmt = (bAmt * pAmt) / 10n ** 18n;
+      const qAmt = parseEther(quoteAmountInput);
 
       const [baseAllowance, quoteAllowance] = await Promise.all([
         publicClient.readContract({
@@ -465,10 +466,10 @@ function QuoteSubmitInner({ onDone }: { onDone: () => void }) {
           />
         </div>
         <div>
-          <label className="block text-xs text-zinc-500 mb-1">Price (1e18, quote per base)</label>
+          <label className="block text-xs text-zinc-500 mb-1">Quote Amount (token units)</label>
           <input
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            value={quoteAmountInput}
+            onChange={(e) => setQuoteAmountInput(e.target.value)}
             disabled={busy}
             className="w-full bg-black/40 border border-monad-purple/20 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-monad-purple disabled:opacity-50 placeholder:text-zinc-600"
           />
@@ -476,7 +477,7 @@ function QuoteSubmitInner({ onDone }: { onDone: () => void }) {
       </div>
       <button
         onClick={handleSubmit}
-        disabled={busy || !baseToken || !quoteToken || !baseAmount || !price}
+        disabled={busy || !baseToken || !quoteToken || !baseAmount || !quoteAmountInput}
         className="w-full py-3 rounded-lg bg-monad-purple hover:bg-monad-purple-light disabled:bg-monad-purple/30 disabled:text-white/50 text-white font-semibold text-sm transition-colors"
       >
         {step === "approve_base" ? "Approving BASE..." :
