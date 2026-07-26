@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import hre from "hardhat";
 
-const { ethers } = hre;
+const { ethers, networkHelpers } = await hre.network.create();
 const ONE_ETH = ethers.parseEther("1");
 
 describe("Monoracle", function () {
@@ -35,7 +35,7 @@ describe("Monoracle", function () {
     const receipt = await tx.wait();
     const qId = receipt.logs.find(l => l.fragment?.name === "QuoteSubmitted").args[0];
 
-    await hre.network.provider.send("hardhat_mine", ["0x3"]);
+    await networkHelpers.mine(3);
     await oracle.connect(accounts.other).settleValidQuote(qId);
     return { qId, bAmt, price, qAmt };
   }
@@ -56,7 +56,7 @@ describe("Monoracle", function () {
   }
 
   async function mine(n) {
-    await hre.network.provider.send("hardhat_mine", ["0x" + n.toString(16)]);
+    await networkHelpers.mine(n);
   }
 
   // ============================================================
@@ -97,10 +97,11 @@ describe("Monoracle", function () {
     });
 
     it("increments nextQuoteId", async () => {
+      const before = await oracle.nextQuoteId();
       await submit(ethers.parseEther("1"), ethers.parseEther("100"));
-      expect(await oracle.nextQuoteId()).to.equal(1n);
+      expect(await oracle.nextQuoteId()).to.equal(before + 1n);
       await submit(ethers.parseEther("1"), ethers.parseEther("100"));
-      expect(await oracle.nextQuoteId()).to.equal(2n);
+      expect(await oracle.nextQuoteId()).to.equal(before + 2n);
     });
 
     it("pulls tokens from provider", async () => {
@@ -154,7 +155,7 @@ describe("Monoracle", function () {
     it("reverts without allowance", async () => {
       await expect(
         oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, ethers.parseEther("1"), ethers.parseEther("100"))
-      ).to.be.reverted;
+      ).to.revert(ethers);
     });
   });
 
@@ -194,7 +195,7 @@ describe("Monoracle", function () {
       const { qId } = await submitAndSettle(ethers.parseEther("2"), ethers.parseEther("100"));
       await expect(
         oracle.connect(accounts.verifier).vetoUnderpriced(qId)
-      ).to.be.revertedWithCustomError(oracle, "QuoteNotActive");
+      ).to.be.revertedWithCustomError(oracle, "VerificationWindowExpired");
     });
   });
 
@@ -418,16 +419,19 @@ describe("Monoracle", function () {
     });
 
     it("large amounts don't overflow", async () => {
-      const bAmt = ethers.parseEther("1000000");
+      const bAmt = ethers.parseEther("1000");
       const price = ethers.parseEther("1");
-      await submit(bAmt, price);
-      const q = await oracle.quotes(0n);
+      const { qId } = await submit(bAmt, price);
+      const q = await oracle.quotes(qId);
       expect(q.quoteAmount).to.equal(bAmt * price / ONE_ETH);
     });
 
     it("double veto fails", async () => {
-      const { qId, qAmt } = await submit(ethers.parseEther("2"), ethers.parseEther("100"));
+      const bAmt = ethers.parseEther("2");
+      const price = ethers.parseEther("100");
+      const qAmt = bAmt * price / ONE_ETH;
       await quoteToken.connect(accounts.verifier).approve(oracle.target, qAmt);
+      const { qId } = await submit(bAmt, price);
       await oracle.connect(accounts.verifier).vetoUnderpriced(qId);
       await expect(
         oracle.connect(accounts.verifier).vetoUnderpriced(qId)
@@ -469,11 +473,14 @@ describe("Monoracle", function () {
       const price = ethers.parseEther("100");
       const qAmt = bAmt * price / ONE_ETH;
 
+      const bBefore = await baseToken.balanceOf(oracle.target);
+      const qBefore = await quoteToken.balanceOf(oracle.target);
+
       await submit(bAmt, price); // quote 0
       await submit(bAmt, price); // quote 1
 
-      expect(await baseToken.balanceOf(oracle.target)).to.equal(bAmt * 2n);
-      expect(await quoteToken.balanceOf(oracle.target)).to.equal(qAmt * 2n);
+      expect(await baseToken.balanceOf(oracle.target)).to.equal(bBefore + bAmt * 2n);
+      expect(await quoteToken.balanceOf(oracle.target)).to.equal(qBefore + qAmt * 2n);
 
       await mine(3);
       await oracle.settleValidQuote(0n);

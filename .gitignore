@@ -19,7 +19,6 @@ note.txt
 cache/compile-cache.json
 /node_modules
 deployment.json
-hardhat.config.js
 .next/
 bot/.env
 bot/.venv/
