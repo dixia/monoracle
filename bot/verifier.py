@@ -29,7 +29,7 @@ RPC_WS_URL      = os.getenv("RPC_WS_URL",      "wss://testnet-rpc.monad.xyz")
 RPC_HTTP_URL    = os.getenv("RPC_HTTP_URL",    "https://testnet-rpc.monad.xyz")
 ORACLE_ADDRESS  = os.getenv("ORACLE_ADDRESS",  "0xF92A55D4e22456C987b3e7AF2E3730b3f5022Ccb")
 THRESHOLD_BPS   = int(os.getenv("THRESHOLD_BPS",   "100"))   # 100 bps = 1%
-GAS_LIMIT_VETO  = int(os.getenv("GAS_LIMIT_VETO",  "120000"))
+GAS_LIMIT_VETO  = int(os.getenv("GAS_LIMIT_VETO",  "300000"))
 CATCH_UP_BLOCKS = int(os.getenv("CATCH_UP_BLOCKS", "60"))
 LOG_LEVEL       = os.getenv("LOG_LEVEL",        "INFO")
 

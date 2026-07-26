@@ -188,9 +188,10 @@ function submitQuote(
 5. Store new `Quote` struct with status `ACTIVE` and `startSlot = uint32(block.number)`
 6. Emit `QuoteSubmitted`
 
-#### Gas Estimate (approximate)
+#### Gas Estimate (approximate, on-chain observed)
 
-~120,000 — 150,000 gas (two ERC20 transfers + storage writes)
+~400,000 — 560,000 gas (two ERC20 `transferFrom` + storage writes + event).  
+Actual testnet usage: 400k–558k (varies with `baseAmount`). Gas limit of 200k is **insufficient** — tx reverts.
 
 ---
 
@@ -231,9 +232,10 @@ function vetoUnderpriced(uint256 quoteId)
 - Contract holds: 0 baseToken, `2 * quoteAmount` quoteToken
 - Verifier receives: full `baseAmount` (to arbitrage on secondary market)
 
-#### Gas Estimate (approximate)
+#### Gas Estimate (approximate, on-chain observed)
 
-~80,000 — 100,000 gas (one ERC20 transferFrom + one ERC20 transfer + storage write)
+~250,000 — 300,000 gas (one ERC20 `transferFrom` + one ERC20 `transfer` + storage write + event).  
+No on-chain veto data yet — estimated from withdraw + submitQuote overhead.
 
 ---
 
@@ -245,7 +247,6 @@ function vetoOverpriced(uint256 quoteId)
     nonReentrant
     quoteExists(quoteId)
     inVerificationWindow(quoteId);
-```
 
 #### Parameters
 
@@ -274,9 +275,10 @@ function vetoOverpriced(uint256 quoteId)
 - Contract holds: `2 * baseAmount` baseToken, 0 quoteToken
 - Verifier receives: full `quoteAmount` (to arbitrage on secondary market)
 
-#### Gas Estimate (approximate)
+#### Gas Estimate (approximate, on-chain observed)
 
-~80,000 — 100,000 gas (one ERC20 transferFrom + one ERC20 transfer + storage write)
+~250,000 — 300,000 gas (one ERC20 `transferFrom` + one ERC20 `transfer` + storage write + event).  
+No on-chain veto data yet — estimated from withdraw + submitQuote overhead.
 
 ---
 
@@ -310,9 +312,10 @@ function settleValidQuote(uint256 quoteId)
 5. Update `latestValidQuoteId[_getPairKey(q.baseToken, q.quoteToken)] = quoteId`
 6. Emit `QuoteSettledValid(quoteId, q.price)`
 
-#### Gas Estimate (approximate)
+#### Gas Estimate (approximate, on-chain observed)
 
-~40,000 — 60,000 gas (storage writes only)
+~100,000 — 120,000 gas (storage writes + event).  
+Actual testnet usage: 100k–119k.
 
 ---
 
@@ -347,9 +350,10 @@ function withdrawProviderFunds(uint256 quoteId)
 
 After transfers, set `q.status = SETTLED_WITHDRAWN` and emit `FundsWithdrawn`.
 
-#### Gas Estimate (approximate)
+#### Gas Estimate (approximate, on-chain observed)
 
-~50,000 — 80,000 gas (ERC20 transfers + storage write)
+~120,000 — 160,000 gas (ERC20 transfers + storage write + event).  
+Actual testnet usage: 100k (failed, insufficient limit) to 160k (success).
 
 ---
 
@@ -453,8 +457,9 @@ Note: `baseToken` and `quoteToken` order matters. `pair(USDC, DAI)` is distinct 
 1. **Approve tokens**: Call `baseToken.approve(giroOracle, baseAmount)` and `quoteToken.approve(giroOracle, quoteAmount)`
 2. **Calculate quoteAmount**: `quoteAmount = baseAmount * price / 1e18`
 3. **Submit**: Call `submitQuote(baseToken, quoteToken, baseAmount, price)`
-4. **Wait for settlement**: After `startSlot + 3` blocks, call (or wait for anyone to call) `settleValidQuote(quoteId)`
-5. **Withdraw**: Call `withdrawProviderFunds(quoteId)`
+4. **Settle**: After `startSlot + 3` blocks, call `settleValidQuote(quoteId)` — anyone can call this. The frontend includes a **Settle** button that appears after a successful submission.
+5. **Read price**: Call `getLatestPrice(baseToken, quoteToken)` to see the updated canonical price feed.
+6. **Withdraw**: Call `withdrawProviderFunds(quoteId)` to reclaim released collateral.
 
 ### 9.2 For Verifiers / Arbitrageurs
 
@@ -480,12 +485,12 @@ require(exists, "Oracle: no price for pair");
 
 Monad charges by **gas limit**, not gas used. Providers and verifiers should set precise gas limits:
 
-| Operation | Recommended Gas Limit |
-|---|---|
-| `submitQuote` | 180,000 |
-| `vetoUnderpriced` / `vetoOverpriced` | 120,000 |
-| `settleValidQuote` | 70,000 |
-| `withdrawProviderFunds` | 100,000 |
+| Operation | Recommended Gas Limit | On-Chain Observed |
+|---|---|---|
+| `submitQuote` | 600,000 | 400k–558k |
+| `vetoUnderpriced` / `vetoOverpriced` | 300,000 | No on-chain data yet |
+| `settleValidQuote` | 150,000 | 100k–119k |
+| `withdrawProviderFunds` | 200,000 | 160k (success), 100k (failed) |
 
 ### 10.2 No Public Mempool
 
@@ -590,6 +595,8 @@ forge verify-contract <address> Monoracle \
 
 The **vetobot** is a Python reference implementation of a Monoracle verifier. It monitors `QuoteSubmitted` events in real-time via WebSocket, compares quoted prices against a configurable fair price, and automatically executes veto transactions when mispricing exceeds a profitability threshold.
 
+**Scope**: The bot is **veto-only**. It detects mispriced quotes and vetoes them within the 2-slot window. It does NOT call `settleValidQuote` for valid quotes — settlement is handled by the price provider or any external caller after the verification window.
+
 ### 14.1 Architecture
 
 ```
@@ -609,6 +616,8 @@ if |quote − fair| / fair > THRESHOLD_BPS:
     ▼
 Log veto decision + tx hash
 ```
+
+Verifiers receive their payout directly within the veto transaction (e.g., `vetoUnderpriced` sends `baseAmount` BASE to the verifier immediately). No separate withdrawal is needed.
 
 ### 14.2 Configuration
 
@@ -655,6 +664,12 @@ bot/
 ├── verifier.py            # Main bot: WebSocket event loop → price compare → veto
 └── README.md             # Setup & usage instructions
 ```
+
+### 14.6 Future: Verifier Withdrawal
+
+Currently, `withdrawProviderFunds` is provider-only. The verifier receives their payout directly within the veto transaction, so no withdrawal is needed for the basic arbitrage flow.
+
+In future versions, if the veto mechanism is extended to escrow verifier rewards or add a delayed-payout model, a `withdrawVerifierFunds` function should be added to allow verifiers to reclaim their allocated rewards or unspent approvals.
 
 ### 13. File Structure
 

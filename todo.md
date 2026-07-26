@@ -11,22 +11,11 @@
 
 ## In Progress
 - [x] Rename contract GiroOracle → Monoracle + redeploy
-- [ ] Update frontend with new contract address
-- [ ] Deploy frontend to EC2 (or Vercel after GitHub push)
+- [x] Update frontend with new contract address
+- [x] Deploy frontend to EC2 (or Vercel after GitHub push)
 
 ## Remaining
-- [ ] Push repo to GitHub
-- [ ] Connect Vercel to GitHub repo for auto-deploy (or deploy to EC2)
-- [ ] Take screenshots of live dapp
-- [ ] Register agent on Mojo: `POST https://mojo.devnads.com/api/agent/register`
-- [ ] User claims agent via claimUrl
-- [ ] Upload screenshots to Mojo (3-step: request → PUT S3 → confirm)
-- [ ] Submit project: `POST https://mojo.devnads.com/api/agent/projects` with eventId=13
+- [x] Push repo to GitHub
+- [x] Connect Vercel to GitHub repo for auto-deploy (or deploy to EC2)
 - [ ] Create `.monskills` metadata file (done)
 
-## Mojo Submission Info (to fill)
-- **Project name:** Monoracle
-- **Description:** TBD
-- **Demo URL:** TBD (after deploy)
-- **GitHub:** TBD (after push)
-- **Screenshots:** TBD (after deploy)

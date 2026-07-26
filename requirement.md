@@ -168,11 +168,12 @@ Trigger: quoted price is so high that selling base asset to the contract and reb
 
 ### 5.1 Valid Price Flow (No Veto)
 
-1. **Submission**: Provider calls `submitQuote(baseToken, quoteToken, baseAmount, price)`, having approved collateral allowance. Contract pulls `baseAmount` base token and `quoteAmount` quote token, creates `ACTIVE` quote, records `startSlot = block.number`, emits `QuoteSubmitted`.
+1. **Submission**: Provider calls `submitQuote(baseToken, quoteToken, baseAmount, price)`, having approved collateral allowance. Contract pulls `baseAmount` base token and `quoteAmount` quote token, creates `ACTIVE` quote, records `startSlot = block.number`, emits `QuoteSubmitted`. The frontend's **Submit** button handles the full approval + submission flow.
 2. **Verification Window**: Quote remains open for veto for exactly 2 slots (600ms). Verifiers observe on-chain state.
 3. **No Veto**: Market judges the price accurate; arbitrage would be unprofitable, so no on-chain action is taken.
-4. **Settlement**: After `block.number > startSlot + 2`, anyone calls `settleValidQuote`. Status becomes `SETTLED_VALID`; canonical price feed updates.
-5. **Withdrawal**: Provider calls `withdrawProviderFunds` and receives full original collateral.
+4. **Settlement**: After `block.number > startSlot + 2`, anyone calls `settleValidQuote`. Status becomes `SETTLED_VALID`; canonical price feed updates. The frontend includes a **Settle** button that appears after a successful submission.
+5. **Read Price**: Call `getLatestPrice(baseToken, quoteToken)` to read the updated canonical price. The frontend's **Query** button fetches and displays the current price.
+6. **Withdrawal**: Provider calls `withdrawProviderFunds` and receives full original collateral.
 
 ### 5.2 Underpriced Veto Flow (Quote Too Cheap)
 
@@ -279,4 +280,5 @@ The following features are explicitly deferred and will not be implemented in th
 5. **Partial vetoes**: Vetoes always consume 100% of one side of collateral.
 6. **Multiple verifier reward splitting**: Single verifier receives full arbitrage profit.
 7. **Canonical price aggregation**: `getLatestPrice` returns the most recent single valid quote.
-8. **Reputation system**: No on-chain reputation tracking for providers or verifiers.
+8. **Verifier withdrawal**: Currently `withdrawProviderFunds` is provider-only. Verifiers receive payout directly in the veto tx. Future versions may need a dedicated `withdrawVerifierFunds` for delayed-payout or escrow models.
+9. **Reputation system**: No on-chain reputation tracking for providers or verifiers.

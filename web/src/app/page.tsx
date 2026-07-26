@@ -518,9 +518,11 @@ function QuoteSubmitInner({ onDone }: { onDone: () => void }) {
 
 function QuoteSubmit() {
   const { isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  useEffect(() => setMounted(true), []);
 
-  if (!isConnected) {
+  if (!mounted || !isConnected) {
     return (
       <section className="rounded-xl border border-monad-purple/15 bg-[#200052]/40 p-6 space-y-4">
         <h2 className="text-lg font-semibold">Submit a Quote</h2>
