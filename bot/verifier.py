@@ -28,8 +28,12 @@ if not PRIVATE_KEY:
 RPC_WS_URL      = os.getenv("RPC_WS_URL",      "wss://testnet-rpc.monad.xyz")
 RPC_HTTP_URL    = os.getenv("RPC_HTTP_URL",    "https://testnet-rpc.monad.xyz")
 ORACLE_ADDRESS  = os.getenv("ORACLE_ADDRESS",  "0xF92A55D4e22456C987b3e7AF2E3730b3f5022Ccb")
-THRESHOLD_BPS   = int(os.getenv("THRESHOLD_BPS",   "100"))   # 100 bps = 1%
+THRESHOLD_BPS   = int(os.getenv("THRESHOLD_BPS",   "0"))     # 0 = dynamic break-even from gas cost (default)
 GAS_LIMIT_VETO  = int(os.getenv("GAS_LIMIT_VETO",  "300000"))
+# MON price in QUOTE tokens (1e18 fixed-point). Used to convert gas cost from MON to QUOTE.
+# Examples: MON=$0.02, QUOTE=$1 → MON_PRICE_IN_QUOTE = 0.02e18 = 20000000000000000
+#           MON=$0.02, QUOTE=$1 → 1 MON buys 0.02 QUOTE
+MON_PRICE_IN_QUOTE = int(os.getenv("MON_PRICE_IN_QUOTE", "20000000000000000"))
 CATCH_UP_BLOCKS = int(os.getenv("CATCH_UP_BLOCKS", "60"))
 LOG_LEVEL       = os.getenv("LOG_LEVEL",        "INFO")
 
@@ -174,8 +178,23 @@ def check_and_veto(raw_log):
              quote_id, effective_price / 1e18, fair_price / 1e18,
              deviation, start_slot, current_block)
 
-    if deviation < THRESHOLD_BPS:
-        log.info("  -> Skipped (< %d bps threshold)", THRESHOLD_BPS)
+    # ---- Gas cost → minimum profitable deviation ----
+    gas_price = w3.eth.gas_price
+    gas_cost_mon = GAS_LIMIT_VETO * gas_price                                   # MON wei
+    gas_cost_quote = gas_cost_mon * MON_PRICE_IN_QUOTE // 10**18                # QUOTE
+
+    # Break-even: deviation (bps) where arb profit = gas cost
+    #   arb = base_amt * (dev_bps/10000) * fair_price / 1e18
+    #   gas = gas_cost_quote
+    #   dev_bps = gas_cost_quote * 10000 * 1e18 / (base_amt * fair_price)
+    # Add 50% margin for price impact / slippage
+    MARGIN_BPS = 5  # 5 bps safety floor
+    break_even = gas_cost_quote * 10000 * 10**18 // (base_amt * fair_price) + MARGIN_BPS
+    min_bps = max(break_even, THRESHOLD_BPS)  # whichever is higher
+
+    if deviation < min_bps:
+        log.info("  -> Skipped (dev=%d bps < min=%d bps [gas=%.4f quote, break-even=%d bps])",
+                 deviation, min_bps, gas_cost_quote / 1e18, break_even)
         return
 
     if current_block > start_slot + 2:
@@ -238,11 +257,13 @@ def event_loop():
 # -- Entry Point ───────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("=== Monoracle Veto Bot ===")
-    print(f"  Verifier:  {VERIFIER}")
-    print(f"  Oracle:    {ORACLE_ADDRESS}")
-    print(f"  Threshold: {THRESHOLD_BPS} bps ({THRESHOLD_BPS / 100:.2f}%)")
-    print(f"  Pairs:     {len(FAIR_PRICES)}")
-    print(f"  WS RPC:    {RPC_WS_URL}")
-    print(f"  HTTP RPC:  {RPC_HTTP_URL} (catch-up)")
+    print(f"  Verifier:           {VERIFIER}")
+    print(f"  Oracle:             {ORACLE_ADDRESS}")
+    print(f"  Gas limit (veto):   {GAS_LIMIT_VETO}")
+    print(f"  Threshold (floor):  {THRESHOLD_BPS} bps ({THRESHOLD_BPS/100:.2f}%)")
+    print(f"  MON_PRICE_IN_QUOTE: {MON_PRICE_IN_QUOTE / 1e18:.6f} QUOTE/MON")
+    print(f"  Pairs:              {len(FAIR_PRICES)}")
+    print(f"  WS RPC:             {RPC_WS_URL}")
+    print(f"  HTTP RPC:           {RPC_HTTP_URL} (catch-up)")
     print()
     event_loop()

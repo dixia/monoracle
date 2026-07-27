@@ -25,3 +25,6 @@ bot/.venv/
 __pycache__/
 web/.vercel/
 DEMO.md
+
+dev_error.txt
+dev_output.txt
