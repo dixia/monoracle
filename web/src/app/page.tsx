@@ -544,7 +544,7 @@ function Footer() {
     <footer className="text-center text-xs text-zinc-600 py-8 border-t border-monad-purple/10">
       <p>Monoracle — Built for Monad Blitz@武汉</p>
       <p className="mt-1">
-        <a href="https://github.com/iamh4/monoracle" className="hover:text-monad-purple">GitHub</a>
+        <a href="https://github.com/dixia/monoracle" className="hover:text-monad-purple">GitHub</a>
         {" · "}
         <a href={EXPLORER_URL} className="hover:text-monad-purple">Explorer</a>
         {" · "}
