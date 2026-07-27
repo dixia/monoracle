@@ -168,7 +168,7 @@ Trigger: quoted price is so high that selling base asset to the contract and reb
 
 ### 5.1 Valid Price Flow (No Veto)
 
-1. **Submission**: Provider calls `submitQuote(baseToken, quoteToken, baseAmount, price)`, having approved collateral allowance. Contract pulls `baseAmount` base token and `quoteAmount` quote token, creates `ACTIVE` quote, records `startSlot = block.number`, emits `QuoteSubmitted`. The frontend's **Submit** button handles the full approval + submission flow.
+1. **Submission**: Provider calls `submitQuote(baseToken, quoteToken, baseAmount, quoteAmount)`, having approved both token allowances. Contract pulls `baseAmount` base token and `quoteAmount` quote token, derives price internally as `(quoteAmount * 1e18) / baseAmount`, creates `ACTIVE` quote, records `startSlot = block.number`, emits `QuoteSubmitted`. The frontend's **Submit** button handles the full approval + submission flow.
 2. **Verification Window**: Quote remains open for veto for exactly 2 slots (600ms). Verifiers observe on-chain state.
 3. **No Veto**: Market judges the price accurate; arbitrage would be unprofitable, so no on-chain action is taken.
 4. **Settlement**: After `block.number > startSlot + 2`, anyone calls `settleValidQuote`. Status becomes `SETTLED_VALID`; canonical price feed updates. The frontend includes a **Settle** button that appears after a successful submission.

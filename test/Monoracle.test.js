@@ -30,7 +30,7 @@ describe("Monoracle", function () {
     await baseToken.connect(accounts.provider).approve(oracle.target, bAmt);
     await quoteToken.connect(accounts.provider).approve(oracle.target, qAmt);
     const tx = await oracle.connect(accounts.provider).submitQuote(
-      baseToken.target, quoteToken.target, bAmt, price
+      baseToken.target, quoteToken.target, bAmt, qAmt
     );
     const receipt = await tx.wait();
     const qId = receipt.logs.find(l => l.fragment?.name === "QuoteSubmitted").args[0];
@@ -48,7 +48,7 @@ describe("Monoracle", function () {
     await _base.connect(accounts.provider).approve(oracle.target, bAmt);
     await _quote.connect(accounts.provider).approve(oracle.target, qAmt);
     const tx = await oracle.connect(accounts.provider).submitQuote(
-      _base.target, _quote.target, bAmt, price
+      _base.target, _quote.target, bAmt, qAmt
     );
     const receipt = await tx.wait();
     const qId = receipt.logs.find(l => l.fragment?.name === "QuoteSubmitted").args[0];
@@ -85,7 +85,7 @@ describe("Monoracle", function () {
       await quoteToken.connect(accounts.provider).approve(oracle.target, qAmt);
 
       await expect(
-        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, bAmt, price)
+        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, bAmt, qAmt)
       ).to.emit(oracle, "QuoteSubmitted");
 
       const q = await oracle.quotes(0n);
@@ -124,10 +124,10 @@ describe("Monoracle", function () {
       ).to.be.revertedWithCustomError(oracle, "ZeroBaseAmount");
     });
 
-    it("reverts on zero price", async () => {
+    it("reverts on zero quoteAmount", async () => {
       await expect(
         oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, ethers.parseEther("1"), 0)
-      ).to.be.revertedWithCustomError(oracle, "ZeroPrice");
+      ).to.be.revertedWithCustomError(oracle, "QuoteAmountTooSmall");
     });
 
     it("reverts on address(0)", async () => {
@@ -145,10 +145,8 @@ describe("Monoracle", function () {
     });
 
     it("reverts when quoteAmount rounds to 0", async () => {
-      await baseToken.connect(accounts.provider).approve(oracle.target, 1000n);
-      await quoteToken.connect(accounts.provider).approve(oracle.target, 1n);
       await expect(
-        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, 1000n, 1n)
+        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, 1000n, 0n)
       ).to.be.revertedWithCustomError(oracle, "QuoteAmountTooSmall");
     });
 

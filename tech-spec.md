@@ -150,7 +150,7 @@ function submitQuote(
     address baseToken,
     address quoteToken,
     uint256 baseAmount,
-    uint256 price
+    uint256 quoteAmount       // Amount of quote token to deposit
 ) external nonReentrant returns (uint256 quoteId);
 ```
 
@@ -161,7 +161,7 @@ function submitQuote(
 | `baseToken` | `address` | Base asset ERC20 token address |
 | `quoteToken` | `address` | Quote asset ERC20 token address |
 | `baseAmount` | `uint256` | Amount of base token to deposit as collateral (token-native units) |
-| `price` | `uint256` | Quoted exchange rate: quote tokens per 1 base token, scaled 1e18 |
+| `quoteAmount` | `uint256` | Amount of quote token to deposit as collateral. Price is derived as `(quoteAmount * 1e18) / baseAmount` internally. |
 
 #### Returns
 
@@ -172,7 +172,7 @@ function submitQuote(
 #### Requirements
 
 - `baseAmount > 0`
-- `price > 0`
+- `quoteAmount > 0`
 - `baseToken != address(0)`
 - `quoteToken != address(0)`
 - `baseToken != quoteToken`
@@ -181,7 +181,7 @@ function submitQuote(
 
 #### Execution
 
-1. Calculate `quoteAmount = (baseAmount * price) / 1e18`
+1. Derive `price = (quoteAmount * 1e18) / baseAmount`
 2. Pull `baseAmount` of `baseToken` via `safeTransferFrom(msg.sender, address(this), baseAmount)`
 3. Pull `quoteAmount` of `quoteToken` via `safeTransferFrom(msg.sender, address(this), quoteAmount)`
 4. Assign `quoteId = nextQuoteId++`
@@ -454,9 +454,9 @@ Note: `baseToken` and `quoteToken` order matters. `pair(USDC, DAI)` is distinct 
 
 ### 9.1 For Price Providers
 
-1. **Approve tokens**: Call `baseToken.approve(giroOracle, baseAmount)` and `quoteToken.approve(giroOracle, quoteAmount)`
-2. **Calculate quoteAmount**: `quoteAmount = baseAmount * price / 1e18`
-3. **Submit**: Call `submitQuote(baseToken, quoteToken, baseAmount, price)`
+1. **Approve tokens**: Call `baseToken.approve(oracle, baseAmount)` and `quoteToken.approve(oracle, quoteAmount)`
+2. **Choose deposit amounts**: Provider selects `baseAmount` and `quoteAmount` to deposit. Price is derived internally as `(quoteAmount * 1e18) / baseAmount`.
+3. **Submit**: Call `submitQuote(baseToken, quoteToken, baseAmount, quoteAmount)`
 4. **Settle**: After `startSlot + 3` blocks, call `settleValidQuote(quoteId)` — anyone can call this. The frontend includes a **Settle** button that appears after a successful submission.
 5. **Read price**: Call `getLatestPrice(baseToken, quoteToken)` to see the updated canonical price feed.
 6. **Withdraw**: Call `withdrawProviderFunds(quoteId)` to reclaim released collateral.

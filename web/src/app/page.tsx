@@ -345,12 +345,11 @@ function QuoteSubmitInner({ onDone }: { onDone: () => void }) {
     } else if (step === "submit") {
       const bAmt = parseEther(baseAmount);
       const qAmt = parseEther(quoteAmountInput);
-      const calcPrice = bAmt > 0n ? (qAmt * 10n ** 18n) / bAmt : 0n;
       writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
         abi: CONTRACT_ABI,
         functionName: "submitQuote",
-        args: [baseToken as `0x${string}`, quoteToken as `0x${string}`, bAmt, calcPrice],
+        args: [baseToken as `0x${string}`, quoteToken as `0x${string}`, bAmt, qAmt],
       });
       setStatus("Submit quote in your wallet...");
     }

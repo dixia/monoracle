@@ -63,7 +63,6 @@ contract Monoracle is ReentrancyGuard {
     // ============================================================
 
     error ZeroBaseAmount();
-    error ZeroPrice();
     error InvalidToken();
     error IdenticalTokens();
     error QuoteAmountTooSmall();
@@ -145,25 +144,25 @@ contract Monoracle is ReentrancyGuard {
 
     /**
      * @notice Submit a new price quotation with bilateral collateral.
-     * @param  baseToken   Address of base asset ERC20 (e.g. SOL)
-     * @param  quoteToken  Address of quote asset ERC20 (e.g. DAI)
-     * @param  baseAmount  Amount of base token to deposit as collateral
-     * @param  price       Quoted price: quote tokens per 1 base token, 1e18 fixed-point
-     * @return quoteId     Unique ID of the created quote
+     * @param  baseToken    Address of base asset ERC20 (e.g. SOL)
+     * @param  quoteToken   Address of quote asset ERC20 (e.g. DAI)
+     * @param  baseAmount   Amount of base token to deposit as collateral
+     * @param  quoteAmount  Amount of quote token to deposit as collateral
+     * @return quoteId      Unique ID of the created quote. Price is derived as
+     *                      (quoteAmount * 1e18) / baseAmount internally.
      */
     function submitQuote(
         address baseToken,
         address quoteToken,
         uint256 baseAmount,
-        uint256 price
+        uint256 quoteAmount
     ) external nonReentrant returns (uint256 quoteId) {
         if (baseAmount == 0) revert ZeroBaseAmount();
-        if (price == 0) revert ZeroPrice();
+        if (quoteAmount == 0) revert QuoteAmountTooSmall();
         if (baseToken == address(0) || quoteToken == address(0)) revert InvalidToken();
         if (baseToken == quoteToken) revert IdenticalTokens();
 
-        uint256 quoteAmount = (baseAmount * price) / 1e18;
-        if (quoteAmount == 0) revert QuoteAmountTooSmall();
+        uint256 price = (quoteAmount * 1e18) / baseAmount;
 
         IERC20(baseToken).safeTransferFrom(msg.sender, address(this), baseAmount);
         IERC20(quoteToken).safeTransferFrom(msg.sender, address(this), quoteAmount);

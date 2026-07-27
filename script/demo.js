@@ -79,8 +79,9 @@ async function main() {
   console.log("└" + "─".repeat(63));
 
   quoteId = await oracle.nextQuoteId();
-  console.log(`\n  1a. submitQuote(price=${FAIR_DISPLAY})  [bot: price=100, fair=100, dev=0 bps < ${THRESHOLD_BPS} → IGNORE]`);
-  const tx1 = await oracle.submitQuote(BASE, QUOTE, AMT, FAIR_PRICE, { gasLimit: 400000 });
+  console.log(`\n  1a. submitQuote(qAmt=%.2f)  [bot: price=100, fair=100, dev=0 bps < ${THRESHOLD_BPS} → IGNORE]`, Number(qAmtFair) / 1e18);
+  const qAmtFair = AMT * FAIR_PRICE / ethers.parseEther("1");
+  const tx1 = await oracle.submitQuote(BASE, QUOTE, AMT, qAmtFair, { gasLimit: 400000 });
   const r1 = await tx1.wait(); startBlock = r1.blockNumber;
 
   console.log(`      #${quoteId} active, window: blocks ${startBlock}–${startBlock + 2}`);
@@ -107,11 +108,11 @@ async function main() {
   console.log("└" + "─".repeat(63));
 
   const badPrice = ethers.parseEther("75");
+  const badQAmt = AMT * badPrice / ethers.parseEther("1");
   quoteId = await oracle.nextQuoteId();
-  console.log(`\n  2a. submitQuote(price=75.00)  [bot: price=75, fair=100, dev=2500 bps >= ${THRESHOLD_BPS} → VETO!]`);
-  console.log(`      Wait — bot should auto-detect and veto now...`);
+  console.log(`\n  2a. submitQuote(qAmt=75.00)  [bot: effective=75, fair=100, dev=2500 bps >= ${THRESHOLD_BPS} → VETO!]`);
 
-  const tx2 = await oracle.submitQuote(BASE, QUOTE, AMT, badPrice, { gasLimit: 400000 });
+  const tx2 = await oracle.submitQuote(BASE, QUOTE, AMT, badQAmt, { gasLimit: 400000 });
   const r2 = await tx2.wait(); startBlock = r2.blockNumber;
   q = await oracle.quotes(quoteId);
   console.log(`      #${quoteId} active at block ${startBlock}, baseAmt=${ethers.formatEther(q.baseAmount)}, price=${ethers.formatEther(q.price)}`);
