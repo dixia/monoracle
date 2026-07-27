@@ -190,20 +190,12 @@ function PriceReader() {
           </button>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {[
-            { label: "Test BASE/QUOTE", base: TEST_TOKENS.BASE.address, quote: TEST_TOKENS.QUOTE.address },
-            { label: "USDC/USDT", base: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603", quote: "0xe7cd86e13AC4309349F30B3435a9d337750fC82D" },
-            { label: "WETH/WMON", base: "0xEE8c0E9f1BFFb4Eb878d8f15f368A02a35481242", quote: "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A" },
-            { label: "WBTC/USDC", base: "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c", quote: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603" },
-          ].map((p) => (
-            <button
-              key={p.label}
-              onClick={() => { setBaseInput(p.base); setQuoteInput(p.quote); setBase(p.base); setQuote(p.quote); }}
-              className="px-3 py-1 rounded-lg bg-monad-purple/10 hover:bg-monad-purple/20 text-xs text-monad-purple transition-colors border border-monad-purple/20"
-            >
-              {p.label}
-            </button>
-          ))}
+          <button
+            onClick={() => { setBaseInput(TEST_TOKENS.BASE.address); setQuoteInput(TEST_TOKENS.QUOTE.address); setBase(TEST_TOKENS.BASE.address); setQuote(TEST_TOKENS.QUOTE.address); }}
+            className="px-3 py-1 rounded-lg bg-monad-purple/10 hover:bg-monad-purple/20 text-xs text-monad-purple transition-colors border border-monad-purple/20"
+          >
+            Test BASE/QUOTE
+          </button>
         </div>
       </div>
       <div className="rounded-lg bg-black/30 border border-monad-purple/10 p-4">
