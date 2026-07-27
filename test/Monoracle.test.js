@@ -63,8 +63,8 @@ describe("Monoracle", function () {
   // Deployment
   // ============================================================
   describe("Deployment", function () {
-    it("nextQuoteId starts at 0", async () => {
-      expect(await oracle.nextQuoteId()).to.equal(0n);
+    it("nextQuoteId starts at 1 (0 reserved as getLatestPrice sentinel)", async () => {
+      expect(await oracle.nextQuoteId()).to.equal(1n);
     });
 
     it("VERIFICATION_SLOTS = 2", async () => {
@@ -84,11 +84,15 @@ describe("Monoracle", function () {
       await baseToken.connect(accounts.provider).approve(oracle.target, bAmt);
       await quoteToken.connect(accounts.provider).approve(oracle.target, qAmt);
 
-      await expect(
-        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, bAmt, qAmt)
-      ).to.emit(oracle, "QuoteSubmitted");
+      const tx = await oracle.connect(accounts.provider).submitQuote(
+        baseToken.target, quoteToken.target, bAmt, qAmt
+      );
+      const receipt = await tx.wait();
+      const qId = receipt.logs.find(l => l.fragment?.name === "QuoteSubmitted").args[0];
 
-      const q = await oracle.quotes(0n);
+      await expect(tx).to.emit(oracle, "QuoteSubmitted");
+
+      const q = await oracle.quotes(qId);
       expect(q.provider).to.equal(accounts.provider.address);
       expect(q.baseAmount).to.equal(bAmt);
       expect(q.quoteAmount).to.equal(qAmt);
@@ -474,17 +478,17 @@ describe("Monoracle", function () {
       const bBefore = await baseToken.balanceOf(oracle.target);
       const qBefore = await quoteToken.balanceOf(oracle.target);
 
-      await submit(bAmt, price); // quote 0
-      await submit(bAmt, price); // quote 1
+      const s0 = await submit(bAmt, price);
+      const s1 = await submit(bAmt, price);
 
       expect(await baseToken.balanceOf(oracle.target)).to.equal(bBefore + bAmt * 2n);
       expect(await quoteToken.balanceOf(oracle.target)).to.equal(qBefore + qAmt * 2n);
 
       await mine(3);
-      await oracle.settleValidQuote(0n);
-      await oracle.settleValidQuote(1n);
-      await oracle.connect(accounts.provider).withdrawProviderFunds(0n);
-      await oracle.connect(accounts.provider).withdrawProviderFunds(1n);
+      await oracle.settleValidQuote(s0.qId);
+      await oracle.settleValidQuote(s1.qId);
+      await oracle.connect(accounts.provider).withdrawProviderFunds(s0.qId);
+      await oracle.connect(accounts.provider).withdrawProviderFunds(s1.qId);
     });
   });
 });

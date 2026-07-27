@@ -48,8 +48,9 @@ contract Monoracle is ReentrancyGuard {
     // State Variables
     // ============================================================
 
-    /// @dev Auto-incrementing quote ID counter
-    uint256 public nextQuoteId;
+    /// @dev Auto-incrementing quote ID counter. Starts at 1 so that
+    ///      latestValidQuoteId[pair] == 0 means "no settled quote" (see getLatestPrice).
+    uint256 public nextQuoteId = 1;
 
     /// @dev quoteId => Quote struct
     mapping(uint256 => Quote) public quotes;
@@ -72,7 +73,6 @@ contract Monoracle is ReentrancyGuard {
     error QuoteNotActive();
     error NotQuoteProvider();
     error NotWithdrawable();
-    error InvalidQuoteStatus();
 
     // ============================================================
     // Events (Monad Streaming RPC compatible)

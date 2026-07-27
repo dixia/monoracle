@@ -94,7 +94,7 @@ async function main() {
 
     // --- Tests ---
     check(await oracle.VERIFICATION_SLOTS() === 2n, "VERIFICATION_SLOTS = 2");
-    check(await oracle.nextQuoteId() === 0n, "nextQuoteId starts at 0");
+    check(await oracle.nextQuoteId() === 1n, "nextQuoteId starts at 1 (0 is sentinel)");
 
     // Approve & submit quote
     const bAmt = ethers.parseEther("2");

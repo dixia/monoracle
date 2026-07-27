@@ -18,4 +18,6 @@
 - [x] Push repo to GitHub
 - [x] Connect Vercel to GitHub repo for auto-deploy (or deploy to EC2)
 - [ ] Create `.monskills` metadata file (done)
+- [ ] **Optional / deferred:** On `withdrawProviderFunds`, `delete quotes[quoteId]` (or zero non-essential fields) after `SETTLED_WITHDRAWN` for gas refund — FR-SV-009 says storage *may* be cleared; v1 keeps full struct for permanent audit via public `quotes` mapping (FR-PF-003). Trade-off: slightly higher long-term storage vs cheaper withdraw + lost history unless events-only audit.
+- [x] **Cleanup:** Remove unused custom error `InvalidQuoteStatus` from `Monoracle.sol` (withdraw uses `NotWithdrawable` / `NotQuoteProvider` instead).
 

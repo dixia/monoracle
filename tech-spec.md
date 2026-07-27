@@ -350,6 +350,8 @@ function withdrawProviderFunds(uint256 quoteId)
 
 After transfers, set `q.status = SETTLED_WITHDRAWN` and emit `FundsWithdrawn`.
 
+**Storage after withdraw (v1):** Only `status` is updated to `SETTLED_WITHDRAWN`. The `Quote` struct is **not** deleted / zeroed. Requirement FR-SV-009 says storage *may* be cleared for gas refund — that optimization is **optional and deferred**. Keeping fields enables permanent audit reads via `quotes(quoteId)` (FR-PF-003).
+
 #### Gas Estimate (approximate, on-chain observed)
 
 ~120,000 — 160,000 gas (ERC20 transfers + storage write + event).  
@@ -395,16 +397,52 @@ function getLatestPrice(address baseToken, address quoteToken)
 
 ---
 
-### 5.7 getQuote
+### 5.7 Quote audit reads via public `quotes` mapping
+
+There is **no** separate `getQuote(uint256)` function. On-chain auditability is provided by the auto-generated public getter for:
 
 ```solidity
-function getQuote(uint256 quoteId)
-    external
-    view
-    returns (Quote memory);
+mapping(uint256 => Quote) public quotes;
 ```
 
-Returns the full `Quote` struct for a given ID. Reverts if the quote does not exist.
+```solidity
+// Solidity public getter signature (compiler-generated)
+function quotes(uint256 quoteId)
+    external
+    view
+    returns (
+        address provider,
+        address baseToken,
+        address quoteToken,
+        uint256 baseAmount,
+        uint256 quoteAmount,
+        uint256 price,
+        uint32 startSlot,
+        uint32 settledSlot,
+        QuoteStatus status
+    );
+```
+
+| Behavior | Detail |
+|---|---|
+| **Exists** | Returns the full `Quote` fields for that `quoteId` |
+| **Does not exist** | Does **not** revert. Returns the zero struct (`provider == address(0)`, amounts `0`, `status == ACTIVE` enum default). Callers must treat `provider == address(0)` as “no quote” (same predicate as the `quoteExists` modifier). |
+| **After withdraw** | Fields remain permanently queryable (status is `SETTLED_WITHDRAWN`). Storage is **not** cleared in v1 (requirement allows optional clear for gas refund; deferred). |
+| **Rationale** | One public mapping satisfies FR-PF-003 (settled prices permanently queryable by `quoteId`) without a second wrapper API. |
+
+Integration example:
+
+```solidity
+(
+    address provider,
+    , , , ,
+    uint256 price,
+    , uint32 settledSlot,
+    QuoteStatus status
+) = monoracle.quotes(quoteId);
+require(provider != address(0), "Quote does not exist");
+// use price / status / settledSlot for audit or UI
+```
 
 ---
 
