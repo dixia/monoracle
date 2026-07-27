@@ -1,12 +1,10 @@
 <!-- BEGIN:workflow-rules -->
 # Workflow Rules
 
-## Before making any changes
-Pause and ask the user:
-- "Should I push the current state to GitHub and Vercel first?"
+## Push paused — always ask
+Push to GitHub (and deploy to Vercel) is **never automatic**. Always pause and ask the user:
+- **Before** starting new changes: "Should I push first?"
+- **After** completing changes: "Want me to push to GitHub?"
 
-Only proceed with changes after the user confirms or explicitly says to skip pushing.
-
-## After making changes
-Do NOT auto-push to GitHub or auto-deploy to Vercel. Always ask the user first.
+Only proceed after the user confirms or says to skip.
 <!-- END:workflow-rules -->
