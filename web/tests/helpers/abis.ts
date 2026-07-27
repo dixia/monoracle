@@ -1,6 +1,6 @@
-import oracleAbi from "../../src/lib/abi.json" with { type: "json" };
+import oracleArtifact from "../../src/lib/abi.json" with { type: "json" };
 
-export const MONORACLE_ABI = oracleAbi;
+export const MONORACLE_ABI = oracleArtifact.abi;
 
 export const ERC20_ABI = [
   {

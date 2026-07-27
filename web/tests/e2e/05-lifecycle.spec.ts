@@ -166,12 +166,11 @@ test.describe("05 - Full Lifecycle", () => {
       address: ORACLE, abi: MONORACLE_ABI, functionName: "settleValidQuote", args: [qId],
     });
 
-    // Now query via UI - the BASE/QUOTE pair is pre-filled with deployed addresses
+    // Wait for initial load to complete (either "No price data" or price data)
+    await expect(page.getByRole("button", { name: "Query" })).toBeEnabled({ timeout: 15000 });
+    // Refetch via UI to get the latest settled price
     await page.getByRole("button", { name: "Query" }).click();
-    // After settlement, the "No price data for this pair yet" should NOT be visible
-    // and instead we should see price data
-    await expect(page.getByText("No price data for this pair yet")).not.toBeVisible({ timeout: 15000 });
-    // The price section should be visible
-    await expect(page.getByText("Settled At Block")).toBeVisible({ timeout: 5000 });
+    // After settlement, the price section should show settled data
+    await expect(page.getByText("Settled At Block")).toBeVisible({ timeout: 20000 });
   });
 });

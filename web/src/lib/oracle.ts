@@ -1,9 +1,9 @@
-import abi from "./abi.json";
+import artifact from "./abi.json";
 
 export const CONTRACT_ADDRESS =
   process.env.NEXT_PUBLIC_ORACLE_ADDRESS ||
   "0xF92A55D4e22456C987b3e7AF2E3730b3f5022Ccb";
-export const CONTRACT_ABI = abi;
+export const CONTRACT_ABI = artifact.abi;
 export const EXPLORER_URL = `https://testnet.monadscan.com/address/${CONTRACT_ADDRESS}`;
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL || "https://testnet-rpc.monad.xyz";

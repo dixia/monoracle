@@ -13,6 +13,7 @@ const CHAIN_ID = Number(
 const chain = {
   ...monadTestnet,
   id: CHAIN_ID,
+  contracts: {},
   rpcUrls: {
     ...monadTestnet.rpcUrls,
     default: {
