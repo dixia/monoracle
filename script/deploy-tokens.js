@@ -8,8 +8,8 @@ const rootDir = path.resolve(__dirname, "..");
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 if (!PRIVATE_KEY) { console.error("Set PRIVATE_KEY env var"); process.exit(1); }
-const RPC_URL = "https://testnet-rpc.monad.xyz";
-const CHAIN_ID = 10143;
+const RPC_URL = process.env.RPC_URL || "https://testnet-rpc.monad.xyz";
+const CHAIN_ID = Number(process.env.CHAIN_ID || 10143);
 
 function getAbi(name) {
   const p = path.join(rootDir, "artifacts", "contracts", name + ".sol", name + ".json");

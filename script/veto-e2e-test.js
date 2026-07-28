@@ -8,12 +8,12 @@ const rootDir = path.resolve(__dirname, "..");
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 if (!PRIVATE_KEY) { console.error("Set PRIVATE_KEY env var"); process.exit(1); }
-const RPC_URL = "https://testnet-rpc.monad.xyz";
-const CHAIN_ID = 10143;
+const RPC_URL = process.env.RPC_URL || "https://testnet-rpc.monad.xyz";
+const CHAIN_ID = Number(process.env.CHAIN_ID || 10143);
 
-const ORACLE_ADDRESS = "0xF92A55D4e22456C987b3e7AF2E3730b3f5022Ccb";
-const BASE_TOKEN = "0xAf078b1cAb4797bA018C8354913eaE22f0f1F719";
-const QUOTE_TOKEN = "0x3c34C844EeaeCbc760a74723FC67d8DF49a05093";
+const ORACLE_ADDRESS = process.env.ORACLE_ADDRESS || "0xF92A55D4e22456C987b3e7AF2E3730b3f5022Ccb";
+const BASE_TOKEN = process.env.BASE_TOKEN || "0xAf078b1cAb4797bA018C8354913eaE22f0f1F719";
+const QUOTE_TOKEN = process.env.QUOTE_TOKEN || "0x3c34C844EeaeCbc760a74723FC67d8DF49a05093";
 
 function getAbi(name) {
   const p = path.join(rootDir, "artifacts", "contracts", name + ".sol", name + ".json");

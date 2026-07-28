@@ -350,7 +350,7 @@ function withdrawProviderFunds(uint256 quoteId)
 
 After transfers, set `q.status = SETTLED_WITHDRAWN` and emit `FundsWithdrawn`.
 
-**Storage after withdraw (v1):** Only `status` is updated to `SETTLED_WITHDRAWN`. The `Quote` struct is **not** deleted / zeroed. Requirement FR-SV-009 says storage *may* be cleared for gas refund — that optimization is **optional and deferred**. Keeping fields enables permanent audit reads via `quotes(quoteId)` (FR-PF-003).
+**Storage after withdraw (v1):** Only `status` is updated to `SETTLED_WITHDRAWN`. The `Quote` struct is **not** deleted / zeroed. Keeping fields enables permanent audit reads via `quotes(quoteId)` (FR-PF-003).
 
 #### Gas Estimate (approximate, on-chain observed)
 
@@ -427,7 +427,7 @@ function quotes(uint256 quoteId)
 |---|---|
 | **Exists** | Returns the full `Quote` fields for that `quoteId` |
 | **Does not exist** | Does **not** revert. Returns the zero struct (`provider == address(0)`, amounts `0`, `status == ACTIVE` enum default). Callers must treat `provider == address(0)` as “no quote” (same predicate as the `quoteExists` modifier). |
-| **After withdraw** | Fields remain permanently queryable (status is `SETTLED_WITHDRAWN`). Storage is **not** cleared in v1 (requirement allows optional clear for gas refund; deferred). |
+| **After withdraw** | Fields remain permanently queryable (status is `SETTLED_WITHDRAWN`). Storage is **not** cleared in v1. |
 | **Rationale** | One public mapping satisfies FR-PF-003 (settled prices permanently queryable by `quoteId`) without a second wrapper API. |
 
 Integration example:
