@@ -64,7 +64,7 @@ test.describe("04 - Quote Settlement", () => {
   });
 
   test("4.3 - getLatestPrice returns correct values after settlement", async () => {
-    const quoteId = await submitAndAdvance("3", "77");
+    const quoteId = await submitAndAdvance("1", "77");
     await mineBlocks(2);
 
     await walletClient.writeContract({
