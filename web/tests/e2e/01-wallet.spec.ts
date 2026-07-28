@@ -61,7 +61,7 @@ test.describe("01 - Wallet Connection", () => {
     await page.getByRole("button", { name: "Connect Wallet" }).click();
     await expect(page.getByText(/0xf39F.*2266/)).toBeVisible({ timeout: 10000 });
 
-    await expect(page.getByText("Submit a Quote")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Submit a Quote" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Submit Quote" })).toBeVisible();
   });
 });

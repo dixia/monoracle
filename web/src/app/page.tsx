@@ -2,7 +2,7 @@
 
 import { useAccount, useConnect, useDisconnect, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { CONTRACT_ADDRESS, CONTRACT_ABI, EXPLORER_URL, TEST_TOKENS } from "@/lib/oracle";
+import { CONTRACT_ADDRESS, CONTRACT_ABI, EXPLORER_BASE, EXPLORER_URL, TEST_TOKENS } from "@/lib/oracle";
 import { useState, useEffect, useRef } from "react";
 import { parseEther, formatEther, maxUint256 } from "viem";
 
@@ -284,7 +284,7 @@ function SettleButton({ quoteId, baseToken, quoteToken }: { quoteId: bigint; bas
         <p className="text-red-400 text-xs">Error: {error.message?.split(".")[0] || "failed"}</p>
       )}
       {txHash && (
-        <a href={`https://testnet.monadscan.com/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="block text-xs text-monad-purple truncate">
+        <a href={`${EXPLORER_BASE}/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="block text-xs text-monad-purple truncate">
           Tx: {txHash.slice(0, 42)}...
         </a>
       )}
@@ -481,7 +481,7 @@ function QuoteSubmitInner({ onDone }: { onDone: () => void }) {
       )}
       {txHash && (
         <a
-          href={`https://testnet.monadscan.com/tx/${txHash}`}
+          href={`${EXPLORER_BASE}/tx/${txHash}`}
           target="_blank"
           rel="noopener noreferrer"
           className="block text-xs text-monad-purple hover:text-monad-purple-light truncate"
