@@ -64,7 +64,7 @@ test.describe("04 - Quote Settlement", () => {
   });
 
   test("4.3 - getLatestPrice returns correct values after settlement", async () => {
-    const quoteId = await submitAndAdvance("1", "77");
+    const quoteId = await submitAndAdvance("3", "77");
     await mineBlocks(2);
 
     await walletClient.writeContract({
@@ -74,7 +74,7 @@ test.describe("04 - Quote Settlement", () => {
       address: ORACLE, abi: MONORACLE_ABI, functionName: "getLatestPrice", args: [BASE, QUOTE],
     });
     expect(exists).toBe(true);
-    expect(price).toBe(parseEther("77"));
+    expect(price).toBe(parseEther("25.666666666666666666"));
     expect(slot).toBeGreaterThan(0);
   });
 });
