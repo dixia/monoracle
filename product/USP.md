@@ -1,32 +1,18 @@
-# Monoracle: Time-Configurable Oracle
+# Monoracle: An Oracle With a Time Expiry
 
-**Monoracle is the first time-configurable decentralized oracle.** Unlike traditional oracles (Chainlink, Pyth, etc.) that provide a price update at variable intervals, Monoracle lets you specify exactly when a price should be finalized — in block time.
+**Traditional oracles (Chainlink, Pyth, etc.):** "Here's the price right now. Poll me again later."
 
-## Core USP
+**Monoracle:** "The price at block N will be final after K blocks of verification."
 
-> Other oracles answer: "What is the price of X right now?"
-> Monoracle answers: "What was the price of X between block N and block N+K?"
+The difference: Monoracle doesn't just give you a price — it gives you a price **with a time settlement point**. The price isn't valid until the verification window closes. That time element is the product, not a config knob.
 
-### Why This Matters
+Other oracles provide a continuous price stream with no temporal finality. Monoracle provides discrete settlement events with a guaranteed block-level expiry — you know exactly *when* a price became canonical and *when* it will stop being disputable.
 
-- **Prediction markets**: "Will ETH be above $5,000 at block 48,000,000?" — Monoracle can settle exactly at that block, not at an oracle's next update.
-- **Short-term derivatives**: 25-minute, 1-hour, or 100-block price expiry contracts. The oracle window IS the contract expiry.
-- **Arbitrage-proof settlement**: At expiry, a short Monoracle window (e.g., 2 blocks) opens. Any mispricing in the settlement quote can be vetoed by permissionless arbitrageurs.
-- **No oracle dependency cascade**: Monoracle settles its own markets — no Chainlink, no UMA, no external data feed.
+## What This Enables
 
-## Configurable Parameters
-
-| Parameter | Current | Planned Range |
-|---|---|---|
-| Verification window | 2 blocks (600ms) | 2 to ~12,000 blocks (100ms to ~1 hour) |
-| Settlement window | N/A (implied by verification window) | Same as verification window |
-| Collateral ratio | 1:1 (symmetric) | 1:1 to 1:100 (asymmetric, writer-chosen) |
-
-## Target Use Cases
-
-| Use Case | Window | Example |
-|---|---|---|
-| Real-time price feed | 2 blocks (600ms) | DeFi lending, DEX internal pricing |
-| Short-term binary options | 1,000 blocks (5 min) | "BTC above $105k at market open" |
-| Hourly prediction markets | 12,000 blocks (1 hour) | Polymarket-style, Monad-native |
-| Scheduled settlements | N blocks (configurable) | Options expiry, futures settlement |
+| Use Case | Why Time Expiry Matters |
+|---|---|
+| **Options settlement** | "What was ETH's price at block 48,000,000?" — Monoracle settles at exactly that block, not at an oracle's next update. |
+| **Short-term prediction markets** | A 1-hour binary contract expires at block N. Monoracle opens a settlement window at block N and confirms the price by block N+2. |
+| **Cross-chain swaps** | Price commitment is valid for exactly K blocks. After that, the commitment expires and can't be executed. |
+| **Scheduled derivatives expiry** | On-chain futures settle at a predetermined block. Monoracle provides the settlement price with built-in dispute resolution. |
