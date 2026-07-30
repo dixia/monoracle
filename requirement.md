@@ -282,3 +282,41 @@ The following features are explicitly deferred and will not be implemented in th
 7. **Canonical price aggregation**: `getLatestPrice` returns the most recent single valid quote.
 8. **Verifier withdrawal**: Currently `withdrawProviderFunds` is provider-only. Verifiers receive payout directly in the veto tx. Future versions may need a dedicated `withdrawVerifierFunds` for delayed-payout or escrow models.
 9. **Reputation system**: No on-chain reputation tracking for providers or verifiers.
+
+---
+
+## 10. Future Requirement Candidates
+
+These requirements are not committed for any specific version but represent the most likely product direction for Monoracle v2+.
+
+### 10.1 Configurable Verification Window
+
+- **FR-CWV-001**: The verification window shall be configurable per-quote at submission time, not fixed at 2 blocks.
+- **FR-CWV-002**: Supported window lengths shall range from 2 blocks (600ms) to approximately 12,000 blocks (1 hour on Monad's 300ms block time).
+- **FR-CWV-003**: The provider shall specify `verificationSlots` at `submitQuote` time. A fixed maximum (e.g., `MAX_VERIFICATION_SLOTS = 12000`) prevents griefing.
+- **FR-CWV-004**: Longer windows enable new use cases:
+  - Short-term prediction markets (15 min, 1 hour)
+  - Scheduled price settlements for derivatives expiry
+  - Delayed price finality for cross-chain atomic swaps
+- **FR-CWV-005**: The veto economics shift with window length:
+  - Short window (2-10 blocks): Arbitrage veto requires fast bots, high-frequency execution
+  - Long window (500-12,000 blocks): Retail users have time to evaluate and veto; gas cost becomes negligible relative to collateral size
+- **FR-CWV-006**: Settlement at expiry uses a short-window Monoracle quote (e.g., 2 blocks) to determine the actual price, regardless of the main quote's verification duration.
+
+### 10.2 Short-Term Options Market
+
+- **FR-STM-001**: New contract `OptionMarket.sol` shall enable market makers to create price prediction markets with configurable strike, expiry, and collateral ratio.
+- **FR-STM-002**: Asymmetric collateral shall allow the market maker to set a leverage ratio for the taker side.
+- **FR-STM-003**: Settlement shall use the existing Monoracle mechanism — a short-window quote at expiry block determines the settlement price.
+- **FR-STM-004**: Payout structure shall support:
+  - **Base payout**: Linear deviation from strike (proportional to |actual - strike|)
+  - **Binary boost**: Additional payout if deviation exceeds a threshold
+  - **Tranched fund model**: Senior (fixed return) and junior (floating) tranches per market
+- **FR-STM-005**: The writer (market maker) shall receive premium from the senior tranche's fixed return component, compensating them for providing liquidity and taking directional risk.
+
+### 10.3 Monoracle-Native Settlement
+
+- **FR-MNS-001**: Any Monoracle-based derivatives market shall settle using a fresh Monoracle quote opened at the expiry block, not an external oracle.
+- **FR-MNS-002**: The settlement quote shall have its own verification window (typically 2 blocks). This window is independent of the main contract's expiry duration.
+- **FR-MNS-003**: During the settlement window, permissionless arbitrageurs can veto the settlement price if it deviates from the true market price. This guarantees honest settlement.
+- **FR-MNS-004**: This creates a fully self-contained system: Monoracle is both the oracle and the settlement mechanism for its own derivative products.
