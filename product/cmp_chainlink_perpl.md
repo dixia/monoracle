@@ -9,6 +9,8 @@ Two facts matter most for positioning:
 1. **Chainlink's "sub-second" is off-chain only.** Data Streams generates signed reports off-chain at ≥1/sec and consumers pull them via WS/REST. On Monad, **Streams Trade (the on-chain push + Automation variant) is NOT deployed** — so a protocol must run its own permissioned relayer to move prices on-chain. On-chain freshness is gated by Monad block time (~0.5 s) plus the protocol's own push policy (Perpl: 0.1 % deviation / 10 s staleness), not by Chainlink.
 2. **Chainlink is not "from Binance."** Crypto streams aggregate **3+ independent price data aggregators/vendors using CEX orderbook data** (Binance is one underlying CEX source feeding those aggregators), producing a DON consensus mid price. Exact vendor names are not public; it is neither a Binance-branded feed nor Binance-exclusive.
 
+**Honest framing up front:** none of this proves Monoracle is "better." Perpl runs a **live, battle-tested, production oracle**; Monoracle is an **early-stage, unaudited research prototype**. Chainlink/Perpl win decisively on maturity, data quality, dependability, and track record. Monoracle's advantages (fully on-chain, permissionless, block-level cadence) are real but come with equally real trade-offs that this document spells out in Section 6. Read that before concluding anything.
+
 ---
 
 ## 1. Does Perpl use Chainlink for mark price?
@@ -135,7 +137,7 @@ VerifierProxy.verify(signedReport, parameterPayload) → decodedReport
 
 ### Max reference price age
 
-Perpl's docs state the Spot Index is refreshed when it is **within 10 seconds of its maximum permitted age**, and that settlement/liquidation is rejected if the on-chain price exceeds that maximum age (a **configurable contract parameter**, `maxRefPriceAge`/reference-price-age equivalent). The **exact numeric value is not published** in the public docs; it is bounded below by the 10-second pre-expiry refresh trigger (i.e., ≥ a few seconds to tens of seconds in practice) and enforced on-chain. Monoracle needs **no such parameter**: a fresh canonical price is settled on-chain every 2 blocks, so there is no aging window to guard.
+Perpl's docs state the Spot Index is refreshed when it is **within 10 seconds of its maximum permitted age**, and that settlement/liquidation is rejected if the on-chain price exceeds that maximum age (a **configurable contract parameter**, `maxRefPriceAge`/reference-price-age equivalent). The **exact numeric value is not published** in the public docs; it is bounded below by the 10-second pre-expiry refresh trigger (i.e., ≥ a few seconds to tens of seconds in practice) and enforced on-chain. Monoracle needs **no such parameter** — but that is because it republishes every window, and its effective freshness is block-time dependent rather than a guaranteed number (see §5–§6).
 
 ---
 
@@ -143,25 +145,39 @@ Perpl's docs state the Spot Index is refreshed when it is **within 10 seconds of
 
 | Aspect | **Chainlink on Monad** (as used by Perpl) | **Monoracle** |
 |---|---|---|
-| **Delivery model** | Pull-based Data Streams (off-chain signed reports, on-demand verification) + **protocol-run relayer** to write on-chain; push-based Data Feeds also available but Perpl uses Streams | **Fully on-chain** on Monad |
-| **Latency / freshness** | Sub-second off-chain; on-chain gated by Monad block time + Perpl push policy (0.1 %/10 s spot, 0.05 % mark); contract rejects stale oracle | Fresh canonical price every **2 blocks (~600 ms)** with economic finality; no staleness concept |
-| **Sources** | Spot: 3+ independent CEX-orderbook aggregators (incl. Binance) via DON consensus. Mark: Perpl's 4-input median (Binance/Hyperliquid/OKX/Bybit + own book) clamped to spot | Permissionless provider quotes backed by bilateral collateral; anyone can quote |
-| **Who can participate** | **Curated** — vetted Chainlink node operators, credentialed Data Streams API access, Perpl's permissioned pricing service/relayer | **Fully permissionless** — anyone can submit a quote, anyone can veto |
-| **Trust model** | Trust in Chainlink DON (vetted operators, OCR consensus) + trust in Perpl's off-chain service (permissioned relayer) | **Cryptoeconomic skin-in-the-game** — no trusted node set, no curated publishers |
-| **Security / integrity** | DON signature verification on-chain (VerifierProxy); 99.9 %+ uptime SLA; SVR on feeds | Veto arbitrage: a bad quote is profitably arbitraged against its locked collateral during the verification window |
-| **Bad-price handling** | Aggregation tries to ignore outliers; ±25 bps spot clamp rejects off-band marks; staleness guardrail | Any bad quote is vetoed for profit → secondary-market arbitrage returns the price to market |
-| **On-chain cost** | Perpl pays verification gas per update + pushes Spot/Mark (gas per refresh) | Quote + verification per 2-block cycle |
-| **Frontrunning** | Commit-and-reveal / Streams Trade atomicity exists on other chains, **not on Monad**; timing handled by Perpl's relayer | Verification window is the arb mechanism itself; correction is a business model for agents |
-| **Dependency on off-chain infra** | High — Chainlink API credentialing + Perpl relayer are required for on-chain data | Zero — no validators, no off-chain data feeds, no relayer |
-| **AI-agent native** | No — feed vendors and relayer are permissioned; no open incentive for agents | Yes — agents optimize arbitrage against quotes and profit directly from corrections |
+| **Deployment status** | **Live in production** across Perpl's markets (BTC/ETH/SOL/MON/HYPE/ZEC) | **Early-stage prototype** on Monad testnet; no live network effect, not yet audited at scale |
+| **Delivery model** | Pull-based Data Streams (off-chain signed reports, on-demand verification) + **protocol-run relayer** to write on-chain; push-based Data Feeds also available | **Fully on-chain** on Monad |
+| **Latency / freshness** | Sub-second off-chain; on-chain gated by Monad block time + Perpl push policy (0.1 %/10 s spot, 0.05 % mark); stale oracle rejected on-chain | Fresh quote every **2 blocks** — fast *if* blocks confirm that quickly; cadence is **block-time dependent** on a young L1 (~0.5–1 s blocks), not a guaranteed 600 ms |
+| **Price source / data quality** | Median over **3+ independent CEX-orderbook aggregators** (incl. Binance) via DON consensus; Perpl adds a 4-input median clamped ±25 bps — sophisticated, institutional-grade aggregation | **A single market-tested quote** per window — **no institutional data aggregation**; it aligns to "market" only because someone may arbitrage it |
+| **Trust model** | Trust in the **Chainlink DON** (vetted operators, OCR consensus) + trust in **Perpl's permissioned relayer**; cryptographically verified signatures | **No trusted operator set** — but honesty depends on a **liquid external market** coming in to arbitrage bad quotes |
+| **Manipulation resistance** | Very high: median-of-medians, SVR, verified signatures, ±25 bps clamp, 99.9 %+ uptime SLA, audited at massive scale | **Conditional**: only as good as the arb capital willing to veto within the window; if no verifier arbitrages, a bad quote can survive |
+| **Capital efficiency** | No collateral locked by users; Perpl pays gas on deviation/expiry | **Providers lock bilateral collateral** per quote (opportunity cost); if providers under-participate, quotes become sparse/stale |
+| **Who repairs bad prices** | Aggregation ignores outliers; contract rejects off-band marks; staleness guardrail | **Anyone can veto-and-profit** — but only when arbitrage is actually profitable for them |
+| **On-chain footprint** | Writes only on deviation/expiry (0.1 %/10 s spot, 0.05 % mark) | Writes a quote + verification **every 2 blocks** — likely a higher, continuous on-chain write rate |
+| **Permissionless participation** | No — curated node operators, credentialed Data Streams API, Perpl's permissioned relayer | **Yes** — anyone quotes, anyone vetoes |
+| **AI-agent native** | No open incentive; publication is permissioned | Yes — agents profit by correcting prices; but the protocol's security effectively **depends** on those agents always showing up |
+| **Track record / audits** | Battle-tested, audited, secures trillions of dollars in DeFi | Novel economic design, **not yet proven in production** |
 
 ---
 
-## 6. Bottom line
+## 6. Monoracle's honest limitations (read before drawing conclusions)
 
-- **Chainlink on Monad = strong, but a "relayer-layered" oracle.** Data Streams gives sub-second *off-chain* reports and a proven DON, but on-chain freshness still depends on a permissioned protocol relayer (Streams Trade is absent on Monad). Perpl's mark price is itself a custom 4-input oracle clamped ±25 bps to Chainlink spot.
+The strengths in Section 5 are real, but they are conditional. The honest caveats:
+
+1. **Security is only as strong as external arb liquidity.** Monoracle does not *compute* a price from real venues — it publishes whatever a provider quotes and relies on a verifier arbitraging it if wrong. That only works if (a) the quote's collateral is tradeable elsewhere, and (b) someone finds the veto profitable fast enough. For liquid pairs (MON, BTC, ETH) that's plausible; for thin or long-tail assets, or when arb capital is insufficient, **a bad quote can survive the window**. The protocol's honesty guarantee is *delegated* to outside markets, not self-contained.
+2. **No institutional data aggregation.** Chainlink/Perpl blend a weighted median across the largest CEX venues; Monoracle is a single quote challenged by arbitrage. It cannot produce the same breadth or smoothness of data, and its "fair" price is whatever the arb market will enforce — not a computed benchmark.
+3. **Untested at scale and unaudited in production.** Monoracle is a testnet prototype. Chainlink has years of audits, SVR, and trillions of dollars of secured value behind it. There is no evidence yet that Monoracle's economic assumptions hold under sustained adversarial load.
+4. **Cadence is block-time dependent, not a hard 600 ms.** A "fresh price every 2 blocks" is only ~600 ms if Monad actually produces 2 blocks in that interval. Real mainnet block times (~0.5–1 s, and Monad itself is still maturing) make the guarantee looser than the marketing number.
+5. **Capital-efficiency and participation risk.** Providers must lock bilateral collateral per quote; that's expensive and may deter quoting. Low participation → sparse or stale quotes, which is exactly the problem the design tries to solve.
+6. **Continuous on-chain write load.** Monoracle writes a quote + verification every 2 blocks, likely a higher steady-state on-chain footprint than Perpl's deviation/expiry-driven pushes — a real cost that must be benchmarked, not assumed free.
+7. **"Economic finality" is not the same as cryptoeconomic finality of consensus.** The quote is canonical only because nobody profited from vetoing it — a weaker guarantee than a consensus-signed feed, and one that decays with arb liquidity.
+
+## 7. Bottom line
+
+- **For a production perp DEX on Monad today, Chainlink + Perpl's own layer is the proven, appropriate choice.** It delivers institutional-grade aggregation, verifiable signatures, a hard ±25 bps freshness/band clamp, and years of battle-tested scale — at the price of a curated operator set, credentialed access, and a permissioned relayer. On Monad, the sub-second promise is off-chain; on-chain freshness is Perpl's relayer's job.
 - **Binance is one input among many** — the Chainlink feed is a DON consensus over 3+ CEX-orderbook aggregators, not a Binance feed.
-- **Monoracle differentiators:** fully on-chain canonical price every ~600 ms with economic finality, zero off-chain dependency, fully permissionless participation, no staleness window, and an explicit profit incentive for AI agents to correct prices — where Chainlink/Perpl still rely on curated node operators and a trusted relayer.
+- **Monoracle's honest case** is narrow but real: fully on-chain, no trusted operator set, permissionless quote-and-challenge, block-level cadence, and an explicit profit incentive for AI agents. It is most compelling where a permissioned relayer or trusted operator is unacceptable, **and** where a deep, liquid external market exists to keep quotes honest.
+- **It is not a drop-in replacement.** Monoracle is a research direction with genuine trade-offs (external-liquidity dependence, no institutional aggregation, capital costs, unproven at scale). Until those are demonstrated in production — ideally on liquid pairs against a live baseline — the rational position is: Chainlink/Perpl for dependability today, Monoracle as a promising thesis worth proving.
 
 ---
 
