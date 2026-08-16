@@ -71,6 +71,9 @@ async function main() {
   const SNIP = ethers.parseEther("0.1");
   const BASE_S = ethers.parseEther("0.1");
 
+  // Default 2-slot verification window: expiry = current tip + VERIFICATION_SLOTS.
+  const defaultExpiry = async () => (await provider.getBlockNumber()) + 2;
+
   // =============================================================
   // TEST 1: Underpriced Veto (5.2)
   // =============================================================
@@ -84,7 +87,7 @@ async function main() {
   const balQ1_b = await new ethers.Contract(QUOTE_TOKEN, ERC20_ABI, wallet).balanceOf(addr);
   console.log(`  Provider holds: ${ethers.formatEther(balB1_b)} BASE, ${ethers.formatEther(balQ1_b)} QUOTE`);
 
-  const sub1 = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), { gasLimit: 200000 });
+  const sub1 = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 200000 });
   const rcp1 = await sub1.wait();
   const q1 = await oracle.quotes(s1);
   console.log(`  #${s1} submitted at block ${rcp1.blockNumber}, price=100, base=1, quote=${ethers.formatEther(q1.quoteAmount)}`);
@@ -125,7 +128,7 @@ async function main() {
   const balB2_b = await new ethers.Contract(BASE_TOKEN, ERC20_ABI, wallet).balanceOf(addr);
   const balQ2_b = await new ethers.Contract(QUOTE_TOKEN, ERC20_ABI, wallet).balanceOf(addr);
 
-  const sub2 = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), { gasLimit: 200000 });
+  const sub2 = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 200000 });
   const rcp2 = await sub2.wait();
   const q2 = await oracle.quotes(s2);
   console.log(`  #${s2} submitted at block ${rcp2.blockNumber}, base=${ethers.formatEther(q2.baseAmount)}, quote=${ethers.formatEther(q2.quoteAmount)}`);
@@ -159,7 +162,7 @@ async function main() {
   // 3a: withdraw on ACTIVE quote
   console.log(`\n3a: withdrawProviderFunds on ACTIVE quote → revert`);
   const s3a = await oracle.nextQuoteId();
-  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, SNIP, SNIP * PRICE / ethers.parseEther("1"), { gasLimit: 200000 })).wait();
+  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, SNIP, SNIP * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 200000 })).wait();
   try {
     await oracle.withdrawProviderFunds(s3a, { gasLimit: 100000 });
     fail(`Should have reverted (ACTIVE)`);
@@ -170,7 +173,7 @@ async function main() {
   // 3b: veto after window expires
   console.log(`\n3b: vetoUnderpriced after window expires → revert`);
   const s3b = await oracle.nextQuoteId();
-  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, SNIP, SNIP * PRICE / ethers.parseEther("1"), { gasLimit: 200000 })).wait();
+  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, SNIP, SNIP * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 200000 })).wait();
   const q3b = await oracle.quotes(s3b);
   const bn = await provider.getBlockNumber();
   const wait = Number(q3b.startSlot) + 3 - bn;
@@ -185,7 +188,7 @@ async function main() {
   // 3c: settle during window
   console.log(`\n3c: settleValidQuote during window → revert`);
   const s3c = await oracle.nextQuoteId();
-  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, SNIP, SNIP * PRICE / ethers.parseEther("1"), { gasLimit: 200000 })).wait();
+  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, SNIP, SNIP * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 200000 })).wait();
   try {
     await oracle.settleValidQuote(s3c, { gasLimit: 100000 });
     fail(`Should have reverted (active window)`);
@@ -196,7 +199,7 @@ async function main() {
   // 3d: double withdraw
   console.log(`\n3d: double withdrawProviderFunds → revert`);
   const s3d = await oracle.nextQuoteId();
-  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_S, BASE_S * PRICE / ethers.parseEther("1"), { gasLimit: 200000 })).wait();
+  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_S, BASE_S * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 200000 })).wait();
   await (await oracle.vetoOverpriced(s3d, { gasLimit: 150000 })).wait();
   await (await oracle.withdrawProviderFunds(s3d, { gasLimit: 100000 })).wait();
   try {
@@ -209,7 +212,7 @@ async function main() {
   // 3e: veto on already-settled quote
   console.log(`\n3e: veto on settled quote → revert`);
   const s3e = await oracle.nextQuoteId();
-  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, SNIP, SNIP * PRICE / ethers.parseEther("1"), { gasLimit: 200000 })).wait();
+  await (await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, SNIP, SNIP * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 200000 })).wait();
   const q3e = await oracle.quotes(s3e);
   const wait2 = Number(q3e.startSlot) + 3 - (await provider.getBlockNumber());
   if (wait2 > 0) { await new Promise(r => setTimeout(r, wait2 * 600)); }

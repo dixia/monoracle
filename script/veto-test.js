@@ -66,6 +66,9 @@ async function main() {
 
   const baseToken = new ethers.Contract(BASE_TOKEN, ERC20_ABI, wallet);
 
+  // Default 2-slot verification window: expiry = current tip + VERIFICATION_SLOTS.
+  const defaultExpiry = async () => (await provider.getBlockNumber()) + 2;
+
   // Pre-approve oracle for large amounts
   const BIG = ethers.parseEther("1000000");
   await ensureApproval(BASE_TOKEN, addr, oracle, wallet, BIG);
@@ -83,7 +86,7 @@ async function main() {
     const quoteAmt = (BASE_AMT * PRICE) / ethers.parseEther("1");
 
     // Submit quote
-    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), { gasLimit: 180000 });
+    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 180000 });
     const submitRcpt = await submitTx.wait();
     const quoteId = (await oracle.nextQuoteId()) - 1n;
     const submitBlock = submitRcpt.blockNumber;
@@ -145,7 +148,7 @@ async function main() {
     const BASE_AMT = ethers.parseEther("1");
     const PRICE = ethers.parseEther("200");
 
-    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), { gasLimit: 180000 });
+    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 180000 });
     const submitRcpt = await submitTx.wait();
     const quoteId = (await oracle.nextQuoteId()) - 1n;
     console.log(`  Submitted quote #${quoteId}, price=200`);
@@ -181,7 +184,7 @@ async function main() {
   {
     const BASE_AMT = ethers.parseEther("1");
     const PRICE = ethers.parseEther("75");
-    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), { gasLimit: 180000 });
+    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 180000 });
     const submitRcpt = await submitTx.wait();
     const quoteId = (await oracle.nextQuoteId()) - 1n;
     const startBlock = submitRcpt.blockNumber;
@@ -224,7 +227,7 @@ async function main() {
   {
     const BASE_AMT = ethers.parseEther("1");
     const PRICE = ethers.parseEther("100");
-    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), { gasLimit: 180000 });
+    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 180000 });
     const submitRcpt = await submitTx.wait();
     const quoteId = (await oracle.nextQuoteId()) - 1n;
     const startBlock = submitRcpt.blockNumber;
@@ -267,7 +270,7 @@ async function main() {
 
     const BASE_AMT = ethers.parseEther("1");
     const PRICE = ethers.parseEther("100");
-    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), { gasLimit: 180000 });
+    const submitTx = await oracle.submitQuote(BASE_TOKEN, QUOTE_TOKEN, BASE_AMT, BASE_AMT * PRICE / ethers.parseEther("1"), await defaultExpiry(), { gasLimit: 180000 });
     const submitRcpt = await submitTx.wait();
     const quoteId = (await oracle.nextQuoteId()) - 1n;
     const startBlock = submitRcpt.blockNumber;
