@@ -37,8 +37,11 @@ This project has **two** repositories:
 |------|-----------|--------|-----|
 | monoracle-dev | Private | `origin` | `github.com/dixia/monoracle-dev.git` |
 | monoracle | Public | `public` | `github.com/dixia/monoracle.git` |
+| IRMarket | Public | — | `github.com/dixia/IRMarket.git` (GTM subproject) |
 
 - **Private repo (origin):** Daily development, all commits, branch work. Default push target.
 - **Public repo (public):** Selective cherry-picks only. Push with `git push public <branch>`.
+- **IRMarket (subproject):** Exotic-option GTM demo of the Monoracle primitive; live at
+  `irmarket-h-fbf5.vercel.app`. See `docs/workflow.md` §Subprojects.
 
 Sync back to public is **manual cherry-pick** — never force-push to public.

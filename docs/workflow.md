@@ -1,5 +1,22 @@
 # Workflow: Updating the DeltaV Startup Form with Edge
 
+## Subprojects
+
+**IRMarket** is a GTM subproject of Monoracle — an exotic-option market that uses the
+Monoracle veto-arbitrage primitive for settlement.
+
+| | |
+|---|---|
+| Repo | `github.com/dixia/IRMarket` (local: `C:\Users\iamh4\Documents\repo\IRMarket`) |
+| Live demo | `https://irmarket-h-fbf5.vercel.app` |
+| Mojo | Monad Blitz@Beijing V2 (eventId=15), project #366 "IRMarket" approved |
+
+- IRMarket forks `contracts/MonoracleWindowed.sol` (per-quote `expiryBlock` window) — tracked
+  as downstream requirement **CWV-01** (`dixia/monoracle-dev#1`).
+- Its `MarketMakerBot` rewrite informs **BOT-02** (`dixia/monoracle-dev#2`), infra hardening only.
+- **Security:** the Mojo agent secret lives at IRMarket `/.mojo-agent.json` (gitignored) — never
+  commit, paste into chat, or send outside the Mojo flow.
+
 The Monoracle startup profile lives at https://deltav.monad.xyz/startup-form and is behind a
 Privy login. This workflow uses the **Edge browser MCP** (`edge` server in opencode config,
 running Playwright with the `msedge` channel) to fill/update it, never submitting until review.
