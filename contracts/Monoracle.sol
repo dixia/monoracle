@@ -8,7 +8,9 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * @title Monoracle
  * @notice Fully decentralized on-chain price oracle for Monad
  * @dev    Price integrity enforced by bilateral collateral + permissionless veto arbitrage.
- *         Verification window: 2 Monad slots (~600ms at 300ms block time).
+ *         Verification window: configurable per quote via `expiryBlock` at submit time,
+ *         capped at MAX_VERIFICATION_SLOTS. Default for standard pairs: 2 Monad slots
+ *         (~600ms at 300ms block time).
  */
 contract Monoracle is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -33,6 +35,7 @@ contract Monoracle is ReentrancyGuard {
         uint256 quoteAmount;    // Collateral units of quote token
         uint256 price;          // Exchange rate, 1e18 fixed-point
         uint32 startSlot;       // block.number at submission
+        uint32 expiryBlock;     // last block in which the quote can be vetoed (inclusive)
         uint32 settledSlot;     // block.number when settled (0 if not)
         QuoteStatus status;     // Current state
     }
@@ -41,8 +44,12 @@ contract Monoracle is ReentrancyGuard {
     // Constants
     // ============================================================
 
-    /// @dev Fixed verification window: 2 Monad slots (~600ms at 300ms block time)
+    /// @dev Default verification window: 2 Monad slots (~600ms at 300ms block time)
     uint32 public constant VERIFICATION_SLOTS = 2;
+
+    /// @dev Max verification window: 12,000 Monad slots (~1 hour at 300ms block time).
+    ///      Caps how long a provider can lock collateral and force exposure (anti-griefing).
+    uint32 public constant MAX_VERIFICATION_SLOTS = 12000;
 
     // ============================================================
     // State Variables
@@ -68,6 +75,8 @@ contract Monoracle is ReentrancyGuard {
     error IdenticalTokens();
     error QuoteAmountTooSmall();
     error QuoteDoesNotExist();
+    error ExpiryMustBeFuture();
+    error ExpiryTooFar();
     error VerificationWindowExpired();
     error VerificationWindowActive();
     error QuoteNotActive();
@@ -86,7 +95,8 @@ contract Monoracle is ReentrancyGuard {
         uint256 baseAmount,
         uint256 quoteAmount,
         uint256 price,
-        uint32 startSlot
+        uint32 startSlot,
+        uint32 expiryBlock
     );
 
     event QuoteVetoedUnderpriced(
@@ -124,7 +134,7 @@ contract Monoracle is ReentrancyGuard {
 
     modifier inVerificationWindow(uint256 quoteId) {
         Quote storage q = quotes[quoteId];
-        if (block.number > uint256(q.startSlot) + VERIFICATION_SLOTS) {
+        if (block.number > uint256(q.expiryBlock)) {
             revert VerificationWindowExpired();
         }
         _;
@@ -132,7 +142,7 @@ contract Monoracle is ReentrancyGuard {
 
     modifier afterVerificationWindow(uint256 quoteId) {
         Quote storage q = quotes[quoteId];
-        if (block.number <= uint256(q.startSlot) + VERIFICATION_SLOTS) {
+        if (block.number <= uint256(q.expiryBlock)) {
             revert VerificationWindowActive();
         }
         _;
@@ -148,6 +158,9 @@ contract Monoracle is ReentrancyGuard {
      * @param  quoteToken   Address of quote asset ERC20 (e.g. DAI)
      * @param  baseAmount   Amount of base token to deposit as collateral
      * @param  quoteAmount  Amount of quote token to deposit as collateral
+     * @param  expiryBlock  Last block in which the quote can be vetoed (inclusive).
+     *                      Must be in (block.number, block.number + MAX_VERIFICATION_SLOTS].
+     *                      Use block.number + VERIFICATION_SLOTS for the default 2-slot window.
      * @return quoteId      Unique ID of the created quote. Price is derived as
      *                      (quoteAmount * 1e18) / baseAmount internally.
      */
@@ -155,12 +168,15 @@ contract Monoracle is ReentrancyGuard {
         address baseToken,
         address quoteToken,
         uint256 baseAmount,
-        uint256 quoteAmount
+        uint256 quoteAmount,
+        uint32 expiryBlock
     ) external nonReentrant returns (uint256 quoteId) {
         if (baseAmount == 0) revert ZeroBaseAmount();
         if (quoteAmount == 0) revert QuoteAmountTooSmall();
         if (baseToken == address(0) || quoteToken == address(0)) revert InvalidToken();
         if (baseToken == quoteToken) revert IdenticalTokens();
+        if (expiryBlock <= block.number) revert ExpiryMustBeFuture();
+        if (expiryBlock > block.number + MAX_VERIFICATION_SLOTS) revert ExpiryTooFar();
 
         uint256 price = (quoteAmount * 1e18) / baseAmount;
 
@@ -176,11 +192,22 @@ contract Monoracle is ReentrancyGuard {
             quoteAmount: quoteAmount,
             price: price,
             startSlot: uint32(block.number),
+            expiryBlock: expiryBlock,
             settledSlot: 0,
             status: QuoteStatus.ACTIVE
         });
 
-        emit QuoteSubmitted(quoteId, msg.sender, baseToken, quoteToken, baseAmount, quoteAmount, price, uint32(block.number));
+        emit QuoteSubmitted(
+            quoteId,
+            msg.sender,
+            baseToken,
+            quoteToken,
+            baseAmount,
+            quoteAmount,
+            price,
+            uint32(block.number),
+            expiryBlock
+        );
     }
 
     /**

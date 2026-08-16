@@ -30,7 +30,7 @@ describe("Monoracle", function () {
     await baseToken.connect(accounts.provider).approve(oracle.target, bAmt);
     await quoteToken.connect(accounts.provider).approve(oracle.target, qAmt);
     const tx = await oracle.connect(accounts.provider).submitQuote(
-      baseToken.target, quoteToken.target, bAmt, qAmt
+      baseToken.target, quoteToken.target, bAmt, qAmt, await defaultExpiry()
     );
     const receipt = await tx.wait();
     const qId = receipt.logs.find(l => l.fragment?.name === "QuoteSubmitted").args[0];
@@ -48,11 +48,17 @@ describe("Monoracle", function () {
     await _base.connect(accounts.provider).approve(oracle.target, bAmt);
     await _quote.connect(accounts.provider).approve(oracle.target, qAmt);
     const tx = await oracle.connect(accounts.provider).submitQuote(
-      _base.target, _quote.target, bAmt, qAmt
+      _base.target, _quote.target, bAmt, qAmt, await defaultExpiry()
     );
     const receipt = await tx.wait();
     const qId = receipt.logs.find(l => l.fragment?.name === "QuoteSubmitted").args[0];
     return { qId, bAmt, price, qAmt };
+  }
+
+  // Default 2-slot window: submit tx will land at tip+1 (startSlot), so
+  // expiry = startSlot + 2 = tip + 3 (inclusive veto window).
+  async function defaultExpiry() {
+    return BigInt(await ethers.provider.getBlockNumber()) + 3n;
   }
 
   async function mine(n) {
@@ -85,7 +91,7 @@ describe("Monoracle", function () {
       await quoteToken.connect(accounts.provider).approve(oracle.target, qAmt);
 
       const tx = await oracle.connect(accounts.provider).submitQuote(
-        baseToken.target, quoteToken.target, bAmt, qAmt
+        baseToken.target, quoteToken.target, bAmt, qAmt, await defaultExpiry()
       );
       const receipt = await tx.wait();
       const qId = receipt.logs.find(l => l.fragment?.name === "QuoteSubmitted").args[0];
@@ -124,39 +130,39 @@ describe("Monoracle", function () {
 
     it("reverts on zero baseAmount", async () => {
       await expect(
-        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, 0, ethers.parseEther("100"))
+        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, 0, ethers.parseEther("100"), await defaultExpiry())
       ).to.be.revertedWithCustomError(oracle, "ZeroBaseAmount");
     });
 
     it("reverts on zero quoteAmount", async () => {
       await expect(
-        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, ethers.parseEther("1"), 0)
+        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, ethers.parseEther("1"), 0, await defaultExpiry())
       ).to.be.revertedWithCustomError(oracle, "QuoteAmountTooSmall");
     });
 
     it("reverts on address(0)", async () => {
       await expect(
         oracle.connect(accounts.provider).submitQuote(
-          "0x0000000000000000000000000000000000000000", quoteToken.target, ethers.parseEther("1"), ethers.parseEther("100")
+          "0x0000000000000000000000000000000000000000", quoteToken.target, ethers.parseEther("1"), ethers.parseEther("100"), await defaultExpiry()
         )
       ).to.be.revertedWithCustomError(oracle, "InvalidToken");
     });
 
     it("reverts on identical tokens", async () => {
       await expect(
-        oracle.connect(accounts.provider).submitQuote(baseToken.target, baseToken.target, ethers.parseEther("1"), ethers.parseEther("100"))
+        oracle.connect(accounts.provider).submitQuote(baseToken.target, baseToken.target, ethers.parseEther("1"), ethers.parseEther("100"), await defaultExpiry())
       ).to.be.revertedWithCustomError(oracle, "IdenticalTokens");
     });
 
     it("reverts when quoteAmount rounds to 0", async () => {
       await expect(
-        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, 1000n, 0n)
+        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, 1000n, 0n, await defaultExpiry())
       ).to.be.revertedWithCustomError(oracle, "QuoteAmountTooSmall");
     });
 
     it("reverts without allowance", async () => {
       await expect(
-        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, ethers.parseEther("1"), ethers.parseEther("100"))
+        oracle.connect(accounts.provider).submitQuote(baseToken.target, quoteToken.target, ethers.parseEther("1"), ethers.parseEther("100"), await defaultExpiry())
       ).to.revert(ethers);
     });
   });

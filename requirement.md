@@ -21,6 +21,15 @@ Monoracle is natively **AI Agent friendly**. Because the arbitrage veto is a pur
 
 - Primary runtime: Monad EVM environment (Chain ID: 143 mainnet / 10143 testnet)
 
+### Target Users
+
+Monoracle is designed for protocols and bots that need sub-second, economically-guaranteed price feeds:
+
+- **PropAMMs** — Proportional AMMs that adjust swap ratios per-block need a canonical price resolved within the same block timeframe. Monoracle's 600ms window is the only oracle fast enough.
+- **On-chain market making programs** — Automated market makers quoting two-sided orders need continuous, fresh price feeds without off-chain relay latency.
+- **On-chain arbitrage bots** — Arbitrageurs need the fastest honest price signal to identify profitable trades and execute before the opportunity expires.
+- **Derivatives & options protocols** — Short-term contracts that settle at a specific block need a price with the same block-level precision.
+
 ### Why Monand
 
 - Leverages Monad native features: async/parallel execution, 300ms block time, speculative finality at 300ms / full finality at 600ms, low gas fees, Streaming RPC
@@ -55,7 +64,7 @@ All roles are fully permissionless; any EOA or contract address may participate 
   - `uint32 startSlot` (Monad block number at submission)
   - `uint32 settledSlot` (block number when settled; 0 if not settled)
   - `QuoteStatus status`
-- **FR-QL-003**: All quotes shall have a fixed verification window of 2 Monad slots (600ms at 300ms block time) measured from `startSlot`.
+- **FR-QL-003**: All quotes shall have a verification window measured from `startSlot` to `expiryBlock`. The default window is 2 Monad slots (600ms at 300ms block time), configurable per-quote at submission time (see §10.1).
 - **FR-QL-004**: No veto or settlement action may be executed on a quote outside its valid state and time window.
 - **FR-QL-005**: The contract shall assign a monotonically increasing `uint256 quoteId` to each new quotation.
 
@@ -231,7 +240,7 @@ Trigger: quoted price is so high that selling base asset to the contract and reb
 
 ### 7.2 Constraints
 
-- Fixed 2-slot verification window for all asset pairs
+- Verification window configurable per-quote at submission time, default 2 slots, capped at `MAX_VERIFICATION_SLOTS`
 - Fully permissionless participation; no whitelists or access control
 - All logic executes on-chain; no off-chain oracle data is trusted
 - Contract is fully immutable; no upgrade mechanism or governance
@@ -293,7 +302,7 @@ These requirements are not committed for any specific version but represent the 
 
 - **FR-CWV-001**: The verification window shall be configurable per-quote at submission time, not fixed at 2 blocks.
 - **FR-CWV-002**: Supported window lengths shall range from 2 blocks (600ms) to approximately 12,000 blocks (1 hour on Monad's 300ms block time).
-- **FR-CWV-003**: The provider shall specify `verificationSlots` at `submitQuote` time. A fixed maximum (e.g., `MAX_VERIFICATION_SLOTS = 12000`) prevents griefing.
+- **FR-CWV-003**: The provider shall specify an `expiryBlock` (last vetoable block, inclusive) at `submitQuote` time. A fixed maximum (e.g., `MAX_VERIFICATION_SLOTS = 12000`) prevents griefing. The default window is `block.number + VERIFICATION_SLOTS` (2 blocks).
 - **FR-CWV-004**: Longer windows enable new use cases:
   - Short-term prediction markets (15 min, 1 hour)
   - Scheduled price settlements for derivatives expiry

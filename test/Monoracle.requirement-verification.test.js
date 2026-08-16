@@ -45,9 +45,12 @@ describe("Monoracle — Requirement Verification (production)", function () {
       await _base.connect(signer).approve(oracle.target, bAmt);
       await _quote.connect(signer).approve(oracle.target, qAmt);
     }
+    // Default 2-slot window: submit tx lands at tip+1 (startSlot), so
+    // expiry = startSlot + 2 = tip + 3 (inclusive veto window).
+    const expiry = opts.expiry ?? BigInt(await ethers.provider.getBlockNumber()) + 3n;
     const tx = await oracle
       .connect(signer)
-      .submitQuote(_base.target, _quote.target, bAmt, qAmt);
+      .submitQuote(_base.target, _quote.target, bAmt, qAmt, expiry);
     const receipt = await tx.wait();
     const log = receipt.logs.find((l) => l.fragment?.name === "QuoteSubmitted");
     return {
@@ -273,10 +276,11 @@ describe("Monoracle — Requirement Verification (production)", function () {
       const { bAmt, qAmt } = exampleAmounts();
       // clear allowance
       await baseToken.connect(provider).approve(oracle.target, 0);
+      const expiry = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       await expect(
         oracle
           .connect(provider)
-          .submitQuote(baseToken.target, quoteToken.target, bAmt, qAmt)
+          .submitQuote(baseToken.target, quoteToken.target, bAmt, qAmt, expiry)
       ).to.revert(ethers);
     });
 
@@ -652,6 +656,7 @@ describe("Monoracle — Requirement Verification (production)", function () {
   // ============================================================
   describe("submitQuote validation (tech-spec §5.1)", function () {
     it("reverts ZeroBaseAmount when baseAmount=0", async () => {
+      const now = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       await expect(
         oracle
           .connect(provider)
@@ -659,12 +664,14 @@ describe("Monoracle — Requirement Verification (production)", function () {
             baseToken.target,
             quoteToken.target,
             0,
-            ethers.parseEther("100")
+            ethers.parseEther("100"),
+            now
           )
       ).to.be.revertedWithCustomError(oracle, "ZeroBaseAmount");
     });
 
     it("reverts QuoteAmountTooSmall when quoteAmount=0", async () => {
+      const now = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       await expect(
         oracle
           .connect(provider)
@@ -672,28 +679,32 @@ describe("Monoracle — Requirement Verification (production)", function () {
             baseToken.target,
             quoteToken.target,
             ethers.parseEther("1"),
-            0
+            0,
+            now
           )
       ).to.be.revertedWithCustomError(oracle, "QuoteAmountTooSmall");
     });
 
     it("reverts InvalidToken on zero baseToken", async () => {
+      const now = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       await expect(
         oracle
           .connect(provider)
-          .submitQuote(ZERO, quoteToken.target, ONE, ethers.parseEther("100"))
+          .submitQuote(ZERO, quoteToken.target, ONE, ethers.parseEther("100"), now)
       ).to.be.revertedWithCustomError(oracle, "InvalidToken");
     });
 
     it("reverts InvalidToken on zero quoteToken", async () => {
+      const now = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       await expect(
         oracle
           .connect(provider)
-          .submitQuote(baseToken.target, ZERO, ONE, ethers.parseEther("100"))
+          .submitQuote(baseToken.target, ZERO, ONE, ethers.parseEther("100"), now)
       ).to.be.revertedWithCustomError(oracle, "InvalidToken");
     });
 
     it("reverts IdenticalTokens", async () => {
+      const now = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       await expect(
         oracle
           .connect(provider)
@@ -701,16 +712,18 @@ describe("Monoracle — Requirement Verification (production)", function () {
             baseToken.target,
             baseToken.target,
             ONE,
-            ethers.parseEther("100")
+            ethers.parseEther("100"),
+            now
           )
       ).to.be.revertedWithCustomError(oracle, "IdenticalTokens");
     });
 
     it("emits QuoteSubmitted with correct fields", async () => {
       const { bAmt, qAmt, expectedPrice } = exampleAmounts();
+      const expiry = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       const tx = await oracle
         .connect(provider)
-        .submitQuote(baseToken.target, quoteToken.target, bAmt, qAmt);
+        .submitQuote(baseToken.target, quoteToken.target, bAmt, qAmt, expiry);
       const receipt = await tx.wait();
       const log = receipt.logs.find(
         (l) => l.fragment?.name === "QuoteSubmitted"
@@ -723,6 +736,7 @@ describe("Monoracle — Requirement Verification (production)", function () {
       expect(log.args.quoteAmount).to.equal(qAmt);
       expect(log.args.price).to.equal(expectedPrice);
       expect(log.args.startSlot).to.equal(receipt.blockNumber);
+      expect(log.args.expiryBlock).to.equal(expiry);
     });
   });
 
@@ -774,9 +788,10 @@ describe("Monoracle — Requirement Verification (production)", function () {
       const qAmt = 2_000_000_000n; // 2000 * 1e6
       await weth.connect(provider).approve(oracle.target, bAmt);
       await usdc.connect(provider).approve(oracle.target, qAmt);
+      const expiry = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       const tx = await oracle
         .connect(provider)
-        .submitQuote(weth.target, usdc.target, bAmt, qAmt);
+        .submitQuote(weth.target, usdc.target, bAmt, qAmt, expiry);
       const receipt = await tx.wait();
       const qId = receipt.logs.find((l) => l.fragment?.name === "QuoteSubmitted")
         .args[0];
@@ -894,9 +909,10 @@ describe("Monoracle — Requirement Verification (production)", function () {
 
       const { bAmt, qAmt, expectedPrice } = exampleAmounts();
       const a = await submit(bAmt, qAmt);
+      const expiry = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       const tx = await oracle
         .connect(provider)
-        .submitQuote(baseToken.target, t3.target, bAmt, qAmt);
+        .submitQuote(baseToken.target, t3.target, bAmt, qAmt, expiry);
       const r = await tx.wait();
       const idB = r.logs.find((l) => l.fragment?.name === "QuoteSubmitted")
         .args[0];
@@ -934,9 +950,10 @@ describe("Monoracle — Requirement Verification (production)", function () {
   // ============================================================
   describe("Edge cases (tech-spec §11.3)", function () {
     it("very small amounts still derive price correctly", async () => {
+      const expiry = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       const tx = await oracle
         .connect(provider)
-        .submitQuote(baseToken.target, quoteToken.target, 1n, 1n);
+        .submitQuote(baseToken.target, quoteToken.target, 1n, 1n, expiry);
       const r = await tx.wait();
       const qId = r.logs.find((l) => l.fragment?.name === "QuoteSubmitted")
         .args[0];
@@ -959,9 +976,10 @@ describe("Monoracle — Requirement Verification (production)", function () {
       const qAmt = ethers.parseEther("100");
       await token6.connect(provider).approve(oracle.target, bAmt);
       await token18.connect(provider).approve(oracle.target, qAmt);
+      const expiry = BigInt(await ethers.provider.getBlockNumber()) + 2n;
       const tx = await oracle
         .connect(provider)
-        .submitQuote(token6.target, token18.target, bAmt, qAmt);
+        .submitQuote(token6.target, token18.target, bAmt, qAmt, expiry);
       const r = await tx.wait();
       const qId = r.logs.find((l) => l.fragment?.name === "QuoteSubmitted")
         .args[0];

@@ -40,13 +40,13 @@ async function ensure(wallet, token, amount) {
   }
 }
 
-async function waitBlocks(since, count, prov) {
-  while (true) {
-    const bn = await prov.getBlockNumber();
-    if (bn > since + count) break;
-    await new Promise(r => setTimeout(r, 400));
+  async function waitBlocks(since, count, prov) {
+    while (true) {
+      const bn = await prov.getBlockNumber();
+      if (bn > since + count) break;
+      await new Promise(r => setTimeout(r, 400));
+    }
   }
-}
 
 const STATUS = ["ACTIVE","VETOED_UNDERPRICED","VETOED_OVERPRICED","SETTLED_VALID","SETTLED_WITHDRAWN"];
 
@@ -58,6 +58,9 @@ async function main() {
 
   const AMT = ethers.parseEther("1");
   let quoteId, q, startBlock, bn;
+
+  // Default 2-slot verification window: expiry = current tip + VERIFICATION_SLOTS.
+  const defaultExpiry = async () => (await provider.getBlockNumber()) + 2;
 
   // ═══════════════════════════════════════════════════════════════════════
   console.log("\n");
@@ -81,7 +84,7 @@ async function main() {
   quoteId = await oracle.nextQuoteId();
   console.log(`\n  1a. submitQuote(qAmt=%.2f)  [bot: price=100, fair=100, dev=0 bps < ${THRESHOLD_BPS} → IGNORE]`, Number(qAmtFair) / 1e18);
   const qAmtFair = AMT * FAIR_PRICE / ethers.parseEther("1");
-  const tx1 = await oracle.submitQuote(BASE, QUOTE, AMT, qAmtFair, { gasLimit: 400000 });
+  const tx1 = await oracle.submitQuote(BASE, QUOTE, AMT, qAmtFair, await defaultExpiry(), { gasLimit: 400000 });
   const r1 = await tx1.wait(); startBlock = r1.blockNumber;
 
   console.log(`      #${quoteId} active, window: blocks ${startBlock}–${startBlock + 2}`);
@@ -112,7 +115,7 @@ async function main() {
   quoteId = await oracle.nextQuoteId();
   console.log(`\n  2a. submitQuote(qAmt=75.00)  [bot: effective=75, fair=100, dev=2500 bps >= ${THRESHOLD_BPS} → VETO!]`);
 
-  const tx2 = await oracle.submitQuote(BASE, QUOTE, AMT, badQAmt, { gasLimit: 400000 });
+  const tx2 = await oracle.submitQuote(BASE, QUOTE, AMT, badQAmt, await defaultExpiry(), { gasLimit: 400000 });
   const r2 = await tx2.wait(); startBlock = r2.blockNumber;
   q = await oracle.quotes(quoteId);
   console.log(`      #${quoteId} active at block ${startBlock}, baseAmt=${ethers.formatEther(q.baseAmount)}, price=${ethers.formatEther(q.price)}`);

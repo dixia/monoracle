@@ -92,6 +92,10 @@ async function main() {
     const oracle = new ethers.Contract(oracleAddr, oracleAbi.abi, wProvider);
     console.log(`Oracle: ${oracleAddr}`);
 
+    // Default 2-slot verification window (inclusive). Computed before the submit
+    // tx lands, so tip+3 => startSlot+2.
+    const defaultExpiry = async () => (await provider.getBlockNumber()) + 3;
+
     // --- Tests ---
     check(await oracle.VERIFICATION_SLOTS() === 2n, "VERIFICATION_SLOTS = 2");
     check(await oracle.nextQuoteId() === 1n, "nextQuoteId starts at 1 (0 is sentinel)");
@@ -103,8 +107,8 @@ async function main() {
 
     await send(wProvider, { to: baseAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, bAmt]) }, nonce);
     await send(wProvider, { to: quoteAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, qAmt]) }, nonce);
-    const tx = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, quoteAddr, bAmt, qAmt]) }, nonce);
-    const qId = new ethers.Interface(["event QuoteSubmitted(uint256 indexed,address,address,address,uint256,uint256,uint256,uint32)"]).parseLog({ topics: tx.logs[0].topics, data: tx.logs[0].data })?.args[0];
+    const tx = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, quoteAddr, bAmt, qAmt, await defaultExpiry()]) }, nonce);
+    const qId = new ethers.Interface(["event QuoteSubmitted(uint256 indexed,address,address,address,uint256,uint256,uint256,uint32,uint32)"]).parseLog({ topics: tx.logs[0].topics, data: tx.logs[0].data })?.args[0];
     check(qId === 0n, "Quote submitted, id=0");
 
     const q = await oracle.quotes(qId);
@@ -126,8 +130,8 @@ async function main() {
     const qAmt2 = bAmt * price2 / ONE_ETH;
     await send(wProvider, { to: baseAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, bAmt]) }, nonce);
     await send(wProvider, { to: quoteAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, qAmt2]) }, nonce);
-    const tx2 = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, quoteAddr, bAmt, qAmt2]) }, nonce);
-    const qId2 = new ethers.Interface(["event QuoteSubmitted(uint256 indexed,address,address,address,uint256,uint256,uint256,uint32)"]).parseLog({ topics: tx2.logs[0].topics, data: tx2.logs[0].data })?.args[0];
+    const tx2 = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, quoteAddr, bAmt, qAmt2, await defaultExpiry()]) }, nonce);
+    const qId2 = new ethers.Interface(["event QuoteSubmitted(uint256 indexed,address,address,address,uint256,uint256,uint256,uint32,uint32)"]).parseLog({ topics: tx2.logs[0].topics, data: tx2.logs[0].data })?.args[0];
     check(qId2 === 1n, "Second quote id=1");
 
     await provider.send("hardhat_mine", ["0x3"]);
@@ -166,15 +170,15 @@ async function main() {
       "Non-provider withdraw reverted"
     );
     await checkRevert(
-      send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, quoteAddr, 0, ethers.parseEther("100")]) }, nonce),
+      send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, quoteAddr, 0, ethers.parseEther("100"), await defaultExpiry()]) }, nonce),
       "Zero baseAmount reverted"
     );
     await checkRevert(
-      send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, baseAddr, bAmt, qAmt]) }, nonce),
+      send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, baseAddr, bAmt, qAmt, await defaultExpiry()]) }, nonce),
       "Identical tokens reverted"
     );
     await checkRevert(
-      send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", ["0x0000000000000000000000000000000000000000", quoteAddr, bAmt, qAmt]) }, nonce),
+      send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", ["0x0000000000000000000000000000000000000000", quoteAddr, bAmt, qAmt, await defaultExpiry()]) }, nonce),
       "Address(0) token reverted"
     );
 
@@ -191,16 +195,16 @@ async function main() {
     check(usdcQAmt === 1_000_000n, "6-dec: quoteAmount correct (1:1)");
     await send(wProvider, { to: usdcAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, usdcBAmt]) }, nonce);
     await send(wProvider, { to: baseAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, usdcQAmt]) }, nonce);
-    const tx3 = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [usdcAddr, baseAddr, usdcBAmt, usdcQAmt]) }, nonce);
+    const tx3 = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [usdcAddr, baseAddr, usdcBAmt, usdcQAmt, await defaultExpiry()]) }, nonce);
     console.log(`  [INFO] 6-dec quote submitted`);
 
     // Independent pairs
     await send(wProvider, { to: baseAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, bAmt]) }, nonce);
     await send(wProvider, { to: quoteAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, qAmt]) }, nonce);
-    const tx4a = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, quoteAddr, bAmt, qAmt]) }, nonce);
+    const tx4a = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [baseAddr, quoteAddr, bAmt, qAmt, await defaultExpiry()]) }, nonce);
     await send(wProvider, { to: quoteAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, bAmt]) }, nonce);
     await send(wProvider, { to: baseAddr, data: mockIface.encodeFunctionData("approve", [oracleAddr, bAmt]) }, nonce);
-    const tx4b = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [quoteAddr, baseAddr, bAmt, qAmt]) }, nonce);
+    const tx4b = await send(wProvider, { to: oracleAddr, data: oracleIface.encodeFunctionData("submitQuote", [quoteAddr, baseAddr, bAmt, qAmt, await defaultExpiry()]) }, nonce);
 
     // Parse quote IDs from tx4a, tx4b
     const decodeQId = (tx) => {

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """Monoracle Veto Bot - Watches QuoteSubmitted events and auto-vetoes mispriced quotes.
 
-Designed for Monad's 2-slot (~600ms) verification window.
-Uses WebSocket RPC + artificial price feed (configurable per-pair).
+Designed for Monad's configurable verification window; the default is 2 slots (~600ms).
+The bot honors each quote's per-quote `expiryBlock` from the event. Uses WebSocket RPC
++ artificial price feed (configurable per-pair).
 """
 
 import os
@@ -163,6 +164,7 @@ def check_and_veto(raw_log):
     base_amt   = args["baseAmount"]
     quote_amt  = args["quoteAmount"]
     start_slot = args["startSlot"]
+    expiry_block = args["expiryBlock"]
 
     # Derive effective price from actual collateral deposited
     effective_price = (quote_amt * 10**18) // base_amt
@@ -174,9 +176,9 @@ def check_and_veto(raw_log):
 
     deviation = abs(effective_price - fair_price) * 10000 // fair_price
 
-    log.info("Quote #%d  effective=%.2f  fair=%.2f  dev=%d bps  slot=%d  current=%d",
+    log.info("Quote #%d  effective=%.2f  fair=%.2f  dev=%d bps  slot=%d  expiry=%d  current=%d",
              quote_id, effective_price / 1e18, fair_price / 1e18,
-             deviation, start_slot, current_block)
+             deviation, start_slot, expiry_block, current_block)
 
     # ---- Gas cost → minimum profitable deviation ----
     gas_price = w3.eth.gas_price
@@ -197,9 +199,9 @@ def check_and_veto(raw_log):
                  deviation, min_bps, gas_cost_quote / 1e18, break_even)
         return
 
-    if current_block > start_slot + 2:
-        log.warning("  -> Window expired (start=%d, end=%d, current=%d)",
-                     start_slot, start_slot + 2, current_block)
+    if current_block > expiry_block:
+        log.warning("  -> Window expired (start=%d, expiry=%d, current=%d)",
+                     start_slot, expiry_block, current_block)
         return
 
     if effective_price < fair_price:
@@ -212,9 +214,9 @@ def check_and_veto(raw_log):
                   "vetoOverpriced")
 
 # -- Event Monitor ─────────────────────────────────────────────────────────
-# Event signature: QuoteSubmitted(uint256,address,address,address,uint256,uint256,uint256,uint32)
+# Event signature: QuoteSubmitted(uint256,address,address,address,uint256,uint256,uint256,uint32,uint32)
 QUOTE_SUBMITTED_SIG = (
-    "QuoteSubmitted(uint256,address,address,address,uint256,uint256,uint256,uint32)"
+    "QuoteSubmitted(uint256,address,address,address,uint256,uint256,uint256,uint32,uint32)"
 )
 QUOTE_SUBMITTED_TOPIC = Web3.keccak(text=QUOTE_SUBMITTED_SIG)
 
