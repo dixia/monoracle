@@ -11,12 +11,6 @@ For Monad-specific details (architecture, async/parallel execution, gas model,
 block states, EIP-7702, RPC endpoints, tooling), consult the full LLM-friendly
 Monad docs index: https://docs.monad.xyz/llms-full.txt
 
-**Check order for Monad-related details:** consult the Monad docs index above
-first — https://docs.monad.xyz/llms-full.txt — then the Perpl docs index:
-https://docs.perpl.xyz/llms.txt (perpetuals exchange on Monad: architecture,
-order book, margin, liquidation, funding, price indices, bridging to Monad,
-networks & configuration, API/SDK).
-
 ## GitHub CLI (gh) Configuration
 
 A classic GitHub PAT with `repo` + `read:org` scopes is configured for the `gh`
