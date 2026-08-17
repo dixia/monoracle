@@ -31,3 +31,11 @@ dev_output.txt
 product/GTM.md
 
 web/test-results/
+
+# Foundry build artifacts (Monad EVM harness)
+out-foundry/
+cache-foundry/
+
+# DeltaV startup form snapshot + API key (do not commit)
+docs/startup-form.md
+docs/DELTAV_API_KEY.md

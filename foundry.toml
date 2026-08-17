@@ -1,0 +1,12 @@
+[profile.default]
+src = "contracts"
+test = "forge-test"
+out = "out-foundry"
+cache_path = "cache-foundry"
+solc = "0.8.20"
+remappings = [
+    "@openzeppelin/=node_modules/@openzeppelin/",
+]
+
+[profile.default.fmt]
+line_length = 120
