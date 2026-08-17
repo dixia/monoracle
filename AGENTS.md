@@ -5,6 +5,12 @@
 Do not ask the user whether to push. Push changes when appropriate and expected, without asking.
 <!-- END:workflow-rules -->
 
+## Monad Reference Docs
+
+For Monad-specific details (architecture, async/parallel execution, gas model,
+block states, EIP-7702, RPC endpoints, tooling), consult the full LLM-friendly
+Monad docs index: https://docs.monad.xyz/llms-full.txt
+
 ## GitHub CLI (gh) Configuration
 
 A classic GitHub PAT with `repo` + `read:org` scopes is configured for the `gh`

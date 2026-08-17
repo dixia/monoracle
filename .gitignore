@@ -39,3 +39,12 @@ cache-foundry/
 # DeltaV startup form snapshot + API key (do not commit)
 docs/startup-form.md
 docs/DELTAV_API_KEY.md
+/.playwright-mcp
+
+# opencode config + tool caches
+/.opencode
+/cache
+/test-results
+
+# hackathon application (personal contact info, not project source)
+most-application.md

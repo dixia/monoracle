@@ -17,6 +17,8 @@ Existing on-chain oracles (Chainlink, Pyth) rely on off-chain relayers, staked v
 - **Latency overhead** — data must travel off-chain → on-chain, causing significant delays
 - **Liveness dependency** — if relayers go down, prices freeze
 
+**Who suffers most:** PropAMMs, on-chain market making programs, and arbitrage bots. These systems operate in sub-second timeframes — they can't wait for off-chain relayers. A PropAMM that swaps at stale prices loses to arbitrage. A market maker quoting two-sided orders needs the canonical price before the next block arrives. An arbitrageur needs the fastest honest price signal to decide which trades to execute.
+
 ### Solution
 
 Monoracle is a **self-correcting oracle** where every price quote is backed by bilateral collateral locked in an on-chain staking contract. During a 2-block verification window, any market participant can profitably veto an incorrect price by arbitraging against the locked collateral. Quotes that survive the window are confirmed as valid canonical prices.

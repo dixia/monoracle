@@ -12,6 +12,7 @@ Other oracles provide a continuous price stream with no temporal finality. Monor
 
 | Use Case | Why Time Expiry Matters |
 |---|---|
+| **PropAMM / on-chain market making** | AMMs adjust swap ratios per-block. A 600ms price delay causes stale execution. Monoracle's sub-second verification window delivers canonical prices fast enough for proportional pricing. |
 | **Options settlement** | "What was ETH's price at block 48,000,000?" — Monoracle settles at exactly that block, not at an oracle's next update. |
 | **Short-term prediction markets** | A 1-hour binary contract expires at block N. Monoracle opens a settlement window at block N and confirms the price by block N+2. |
 | **Cross-chain swaps** | Price commitment is valid for exactly K blocks. After that, the commitment expires and can't be executed. |

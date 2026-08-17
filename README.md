@@ -15,6 +15,16 @@ Every price quote is backed by bilateral collateral locked in an on-chain stakin
 
 Because the veto logic is a pure on-chain game, **AI agents** can run sophisticated arbitrage bots that optimize execution strategies, manage gas costs, and adapt to changing market conditions — turning price correction into a profitable, self-improving system.
 
+## Who Needs This
+
+**PropAMM (Proportional Automated Market Maker)** — AMMs that adjust swap ratios proportionally based on real-time price feeds. Every millisecond of price delay means trades execute at stale rates. Monoracle's 600ms verification window (2 blocks at 300ms) is the only oracle fast enough to keep PropAMM pricing fair.
+
+**On-chain market making programs** — Automated market makers that continuously quote two-sided orders need sub-block price updates. With Monoracle, they get a fresh canonical price every 2 blocks with economic finality — no off-chain relayers, no stale data.
+
+**On-chain arbitrageurs** — Arbitrage bots need the fastest possible price signal to identify and execute profitable trades. Monoracle's permissionless veto mechanism lets them profit directly from price corrections, turning latency into a business model.
+
+All three share the same requirement: **a price oracle that resolves in under a second, with no off-chain dependency, and economic guarantees that the price is honest.**
+
 ## Getting Started
 
 ### Prerequisites
