@@ -23,6 +23,15 @@ git cherry-pick <commit-hash>   # pick only what you want to share
 git push public release/v0.3.0:main
 ```
 
+### Non-cherry-pick paths
+
+These paths stay private-only — never cherry-pick commits touching them to `public`:
+
+| Path | Reason |
+|---|---|
+| `docs/app/` | Hackathon doc, Private documents |
+| `docs/` | Internal docs, API keys, startup-form snapshots (some gitignored) |
+
 ## Deploy contracts
 
 ### Prerequisites
