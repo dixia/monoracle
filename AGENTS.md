@@ -2,7 +2,7 @@
 # Workflow Rules
 
 ## Push policy
-Do not ask the user whether to push. Push changes when appropriate and expected, without asking.
+Do not ask the user whether to push. Push changes only when user asked and approved.
 <!-- END:workflow-rules -->
 
 ## Monad Reference Docs
@@ -37,7 +37,7 @@ gh issue list --repo owner/repo --limit 10
 
 ## Repositories
 
-This project has **two** repositories:
+This project has **three** repositories:
 
 | Repo | Visibility | Remote | URL |
 |------|-----------|--------|-----|
@@ -45,11 +45,4 @@ This project has **two** repositories:
 | monoracle | Public | `public` | `github.com/dixia/monoracle.git` |
 | IRMarket | Public | — | `github.com/dixia/IRMarket.git` (GTM subproject) |
 
-- **Private repo (origin):** Daily development, all commits, branch work. Default push target.
-- **Public repo (public):** Selective cherry-picks only. Push with `git push public <branch>`.
-- **IRMarket (subproject):** Exotic-option GTM demo of the Monoracle primitive; live at
-  `irmarket-h-fbf5.vercel.app`. See `docs/workflow.md` §Subprojects.
-
-- **Grant / update rules:** `docs/app/grant-update-rules.md`
-
-Sync back to public is **manual cherry-pick** — never force-push to public.
+- **Internal workflow rules:** `.internal/workflow.md`
