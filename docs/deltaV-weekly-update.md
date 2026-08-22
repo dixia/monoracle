@@ -7,14 +7,15 @@
 ## What we shipped
 
 **Monoracle — Configurable Verification Window (CWV-01)**
-- `submitQuote` now accepts `expiryBlock`; the verification window is `[startSlot, expiryBlock]`, capped at 12,000 slots. New errors: `ExpiryMustBeFuture`, `ExpiryTooFar`.
-- 106 Hardhat tests + 12 new Foundry deterministic tests (using `vm.roll()` for exact block control) + live Monad testnet integration: **11/11 passing** against `0x151286e6Ca5F5CA20910dE90C0DCEAa9fd71f2c8`.
+- `submitQuote` now accepts `expiryBlock`; the verification window is `[startSlot, expiryBlock]`, capped at 12,000 slots but flexible. New errors: `ExpiryMustBeFuture`, `ExpiryTooFar`.
+- Started rewriting some tests using Foundry (Monad fork). The codebase now includes 106 Hardhat tests + 12 new Foundry deterministic tests (using `vm.roll()` for exact block control) + live Monad testnet integration: **11/11 passing** against `0x151286e6Ca5F5CA20910dE90C0DCEAa9fd71f2c8`.
 - Full call-site updates: `bot/verifier.py`, all demo/smoke/veto scripts, `requirement.md`.
 
 **IRMarket — Web UI v0.9.2**
-- All UI copy translated to English; canonical copy registry in `docs/product/ui_copy.md`.
+- All UI copy has been rewritten; canonical copy registry in `docs/product/ui_copy.md`.
 - Market list now sorts still-quoting markets first, then soonest-expiry first.
 - `docs/web-tech-design.md` rewritten to V0.9.2, references the copy registry and positions data-layer issue.
+- some updates to decks making it easier to share with other devs
 
 **IRMarket — Spec sync**
 - `docs/sc-tech-spec.md` updated: `MonoracleWindowed` marked deprecated, `version()`, gas estimates, error codes, deploy flow, and round-scoping all synced to the current codebase.
