@@ -48,3 +48,7 @@ docs/DELTAV_API_KEY.md
 
 # hackathon application (personal contact info, not project source)
 most-application.md
+
+# internal rules and private notes (not synced to public)
+.internal/
+
