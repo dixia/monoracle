@@ -50,4 +50,7 @@ This project has **two** repositories:
 - **IRMarket (subproject):** Exotic-option GTM demo of the Monoracle primitive; live at
   `irmarket-h-fbf5.vercel.app`. See `docs/workflow.md` §Subprojects.
 
+- **Grant / update rules:** `docs/app/grant-update-rules.md` — competing chain separation
+  for grant apps and weekly updates.
+
 Sync back to public is **manual cherry-pick** — never force-push to public.
