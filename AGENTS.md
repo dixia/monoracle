@@ -27,3 +27,4 @@ This project has **three** repositories:
 | IRMarket | Public | — | `github.com/dixia/IRMarket.git` (GTM subproject) |
 
 - **Internal workflow rules:** `.internal/workflow.md`
+- **DeltaV weekly update:** `.internal/deltaV-weekly-update.md`
