@@ -17,6 +17,10 @@ Because the veto logic is a pure on-chain game, **AI agents** can run sophistica
 
 ## Who Needs This
 
+**All DeFi project** -  No financial infra does not need a more secure and faster price Oracle!
+
+But currently some more easier GTM targets:
+
 **PropAMM (Proportional Automated Market Maker)** — AMMs that adjust swap ratios proportionally based on real-time price feeds. Every millisecond of price delay means trades execute at stale rates. Monoracle's 600ms verification window (2 blocks at 300ms) is the only oracle fast enough to keep PropAMM pricing fair.
 
 **On-chain market making programs** — Automated market makers that continuously quote two-sided orders need sub-block price updates. With Monoracle, they get a fresh canonical price every 2 blocks with economic finality — no off-chain relayers, no stale data.
